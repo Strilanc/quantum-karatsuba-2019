@@ -74,6 +74,14 @@ class MutableInt:
             return int(self) == int(other)
         return NotImplemented
 
+    def __iadd__(self, other):
+        self.val += int(other)
+        return self
+
+    def __isub__(self, other):
+        self.val -= int(other)
+        return self
+
     def __repr__(self):
         return str(self.val)
 
@@ -99,33 +107,93 @@ def add_into_pieces(input_pieces: List[MutableInt],
                     factor: int = 1):
     assert len(input_pieces) == len(output_pieces)
     for i in range(len(input_pieces)):
-        output_pieces[i].val += input_pieces[i].val * factor
+        output_pieces[i] += input_pieces[i].val * factor
+
+
+def generate_blocks(n: int):
+    result = []
+    for i in range(n):
+        for s in range(n):
+            if i | s == n - 1:
+                result.append((i, s, -1 if hamming_seq(i & s) else +1))
+    return result
 
 
 def add_square_into_pieces(input_pieces: List[MutableInt],
                            output_pieces: List[MutableInt],
-                           pos: bool = True):
+                           pos: bool = True,
+                           i1: int = 0,
+                           i2: int = None,
+                           o1: int = 0,
+                           o2: int = None,
+                           s1: int = 0,
+                           s2: int = 0,
+                           record: List[Any] = None):
+    if i2 is None:
+        i2 = len(input_pieces)
+    if o2 is None:
+        o2 = len(output_pieces)
     assert len(input_pieces) * 2 == len(output_pieces)
     if len(input_pieces) == 1:
-        output_pieces[0].val += input_pieces[0].val**2 * (+1 if pos else -1)
+        output_pieces[0] += input_pieces[0].val**2 * (+1 if pos else -1)
+        # print('out.append((0b{}, 0b{}, {}1))'.format(
+        #     bin(i1)[2:].rjust(6, '0'),
+        #     # bin(i2)[2:].rjust(6, '_'),
+        #     # bin(o1)[2:].rjust(6, '_'),
+        #     # bin(o2)[2:].rjust(6, '_'),
+        #     bin(s1)[2:].rjust(6, '0'),
+        #     # bin(s2)[2:].rjust(6, '_'),
+        #     '+' if pos else '-'))
+        if record is not None:
+            record.append((i1, s1, +1 if pos else -1))
+        assert i2 == i1 + 1, (i2, i1)
+        assert s1 & s2 == 0
+        assert pos == (not hamming_seq(i1 & s1))
         return
     h = len(input_pieces) >> 1
+    assert not s1 & h
+    assert i2 - i1 == h*2, (i2, i1, h)
+    assert o2 - o1 == (i2 - i1)*2
+    assert o1 == i1
+    assert i2 == i1 + 2*h
+    assert o2 == o1 + 4*h
 
     for i in range(h, len(output_pieces)):
-        output_pieces[i].val += output_pieces[i - h].val
+        output_pieces[i] += output_pieces[i - h]
     add_square_into_pieces(input_pieces=input_pieces[:h],
                            output_pieces=output_pieces[:2*h],
-                           pos=pos)
+                           pos=pos,
+                           i1=i1,
+                           i2=i1 + h,
+                           o1=o1,
+                           o2=o1 + 2*h,
+                           s1=s1 | h,
+                           s2=s2,
+                           record=record)
     add_square_into_pieces(input_pieces=input_pieces[h:],
                            output_pieces=output_pieces[h:3*h],
-                           pos=not pos)
+                           pos=not pos,
+                           i1=i1 + h,
+                           i2=i2,
+                           o1=o1 + h,
+                           o2=o1 + 3*h,
+                           s1=s1 | h,
+                           s2=s2,
+                           record=record)
     for i in range(h, len(output_pieces))[::-1]:
-        output_pieces[i].val -= output_pieces[i - h].val
+        output_pieces[i] -= output_pieces[i - h]
 
     add_into_pieces(input_pieces[:h], input_pieces[h:])
     add_square_into_pieces(input_pieces=input_pieces[h:],
                            output_pieces=output_pieces[h:3*h],
-                           pos=pos)
+                           pos=pos,
+                           i1=i1 + h,
+                           i2=i2,
+                           o1=o1 + h,
+                           o2=o1 + 3*h,
+                           s1=s1,
+                           s2=s2 | h,
+                           record=record)
     add_into_pieces(input_pieces[:h], input_pieces[h:], factor=-1)
 
 

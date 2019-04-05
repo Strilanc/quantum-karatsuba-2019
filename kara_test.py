@@ -1,7 +1,7 @@
 import random
 
 from .int_buffer import IntBuf
-from .kara import add_square_into, mask_iter, set_bit_vals, power_of_two_ness, ceil_lg2, split_into_pieces, fuse_pieces, add_into_pieces, add_square_into_pieces
+from .kara import add_square_into, mask_iter, set_bit_vals, power_of_two_ness, ceil_lg2, split_into_pieces, fuse_pieces, add_into_pieces, add_square_into_pieces, generate_blocks, MutableInt
 
 
 def test_add_square_into_small():
@@ -60,7 +60,7 @@ def test_piecewise_addition():
 
 def test_piecewise_square_addition():
     piece_size = 16
-    piece_count = 32
+    piece_count = 16
     r1 = random.randint(0, ~(-1 << (piece_count*piece_size)))
     r2 = random.randint(0, ~(-1 << (piece_count*piece_size*2)))
     p1 = split_into_pieces(r1, piece_size=piece_size, piece_count=piece_count)
@@ -72,6 +72,8 @@ def test_piecewise_square_addition():
     expected = r1**2 + r2
     actual = fuse_pieces(p2, piece_size)
     assert actual == expected, (actual, expected, r2, '+', r1**2)
+    print([e.val.bit_length() for e in p2])
+    # assert False
 
 
 def test_set_bit_vals():
@@ -118,3 +120,25 @@ def test_ceil_lg2():
     assert ceil_lg2(7) == 3
     assert ceil_lg2(8) == 3
     assert ceil_lg2(9) == 4
+
+
+def test_generate_blocks():
+    n = 128
+    expected = []
+    add_square_into_pieces(input_pieces=[MutableInt(0) for _ in range(n)],
+                           output_pieces=[MutableInt(0) for _ in range(2*n)],
+                           record=expected)
+    actual = generate_blocks(n)
+    assert len(expected) == len(set(expected))
+    assert len(actual) == len(set(actual))
+    assert len(actual) == len(expected)
+    # exp1 = sorted(exp, key=lambda e: (e[0], e[1], e[2]))
+    # actual1 = sorted(actual, key=lambda e: (e[0], e[1], e[2]))
+    # for e, f in zip(exp1, actual1):
+    #     if e != f:
+    #         print(bin(e[0])[2:].rjust(6, '0'), bin(e[1])[2:].rjust(6, '0'), '-' if e[2]==-1 else '+', bin(f[0])[2:].rjust(6, '0'), bin(f[1])[2:].rjust(6, '0'), f[2])
+    # for e in set(exp) - set(actual):
+    #     print("MISSING", e)
+    # for e in set(actual) - set(exp):
+    #     print("EXTRA", e)
+    assert set(actual) == set(expected)
