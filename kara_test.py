@@ -17,7 +17,7 @@ def test_add_square_into_small():
 
 
 def test_add_square_into_large():
-    n = 1000
+    n = 200
     x = random.randint(0, 2**n - 1)
     y = random.randint(0, 2**n - 1)
     val = IntBuf.zero(n)
