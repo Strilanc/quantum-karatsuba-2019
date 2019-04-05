@@ -1,4 +1,4 @@
-from .int_buffer import IntBuf, RawIntBuffer, RawConcatBuffer
+from .int_buffer import IntBuf, RawIntBuffer, RawConcatBuffer, RawWindowBuffer
 
 
 def test_int_buffer():
@@ -62,3 +62,10 @@ def test_concat():
     e[:] = 0
     e[3:8] = 0b11111
     assert int(e) == 0b0011111000
+
+
+def test_window_flatten():
+    a = RawIntBuffer(0b101101, 6)
+    b = RawWindowBuffer(a, 1, 5)
+    c = RawWindowBuffer(b, 1, 3)
+    assert repr(c) == 'RawWindowBuffer(RawIntBuffer(0b101101, 6), 2, 4)'

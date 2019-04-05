@@ -67,7 +67,7 @@ class RawIntBuffer(Buffer):
         return ''.join(str(self[i]) for i in range(len(self))[::-1])
 
     def __repr__(self):
-        return 'RawIntBuffer({!r}, {!r})'.format(self._val, self._len)
+        return 'RawIntBuffer(0b{}, {!r})'.format(str(self), self._len)
 
 
 class RawConcatBuffer(Buffer):
@@ -149,16 +149,19 @@ class RawWindowBuffer(Buffer):
                 start: int,
                 stop: int):
         if isinstance(buf, RawWindowBuffer):
-            return RawWindowBuffer(
+            result = RawWindowBuffer(
                 buf._buf,
                 buf._start + start,
                 buf._start + stop)
+            return result
         return super().__new__(cls)
 
     def __init__(self,
                  buf: Buffer,
                  start: int,
                  stop: int):
+        if isinstance(buf, RawWindowBuffer):
+            return
         self._buf = buf
         self._start = start
         self._stop = stop
