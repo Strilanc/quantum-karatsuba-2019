@@ -1,6 +1,6 @@
 import math
 
-from .int_buffer import IntBuf
+from .int_buffer import IntBuf, RawIntBuffer, RawWindowBuffer, RawConcatBuffer
 
 
 def ceil_power_of_2(n: int) -> int:
@@ -28,12 +28,23 @@ def add_raw_square_into(val: IntBuf,
         out += (+1 if pos else -1) * int(val)**2
         return
 
-    a = val[:n]
-    b = val[n:]
-    times_mul_inverse_1k1(n, out)
-    add_raw_square_into(a, out, pos, n)
-    add_raw_square_into(b, out[n:], not pos)
-    out[n:] -= out[:]
+    p = 4
+    m = n
+    while m >= p:
+        times_mul_inverse_1k1(m, out)
+        m >>= 1
+
+    seq = [True]
+    for i in range(0, n * 2, p):
+        if i//p >= len(seq):
+            seq = seq + [not e for e in seq]
+        sign = +1 if seq[i//p] == pos else -1
+        out[i:] += int(val[i:i+p])**2 * sign
+
+    m = n
+    while m >= p:
+        out[m:] -= out
+        m >>= 1
 
 
 def add_rem_square_into(val: IntBuf,
@@ -61,7 +72,6 @@ def add_rem_square_into(val: IntBuf,
         out[n+m:] += int(a) * (+1 if pos else -1)
         out[n+2*m-2:] += +1 if pos else -1
     c -= b
-
 
 
 def times_mul_inverse_1k1(n: int, out: IntBuf):
