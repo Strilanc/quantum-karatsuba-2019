@@ -8,6 +8,15 @@ def add_square_into(val: IntBuf,
                     pos: bool = True,
                     pad: int = 0,
                     pad_fill: int = 0):
+    add_raw_subtree_into(val, out, pos, pad, pad_fill)
+    add_rem_subtree_into(val, out, pos, pad, pad_fill)
+
+
+def add_raw_subtree_into(val: IntBuf,
+                         out: IntBuf,
+                         pos: bool = True,
+                         pad: int = 0,
+                         pad_fill: int = 0):
     n = (len(val) - pad) >> 1
     if n <= 2:
         if pos:
@@ -19,17 +28,25 @@ def add_square_into(val: IntBuf,
     a = val[:n]
     b = val[n:]
     times_mul_inverse_1k1(n, out)
-    add_square_into(a, out, pos, 0, pad_fill)
-    add_square_into(b, out[n:], not pos, pad, pad_fill)
+    add_raw_subtree_into(a, out, pos, 0, pad_fill)
+    add_raw_subtree_into(b, out[n:], not pos, pad, pad_fill)
     out[n:] -= out[:]
-    assert len(b) >= len(a)
-    pad_fill += 1
-    if pad_fill >= 1 << pad:
-        pad += 1
-        b = b.padded(1)
-    b += a
-    add_square_into(b, out[n:], pos, pad, pad_fill)
-    b -= a
+
+
+def add_rem_subtree_into(val: IntBuf,
+                         out: IntBuf,
+                         pos: bool = True,
+                         pad: int = 0,
+                         pad_fill: int = 0):
+    n = (len(val) - pad) >> 1
+    if n <= 2:
+        return
+
+    a = val[:n]
+    b = val[n:]
+    times_mul_inverse_1k1(n, out)
+    add_rem_subtree_into(a, out, pos, 0, pad_fill)
+    add_rem_subtree_into(b, out[n:], not pos, pad, pad_fill)
     out[n:] -= out[:]
     assert len(b) >= len(a)
     pad_fill += 1
