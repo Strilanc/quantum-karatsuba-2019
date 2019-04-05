@@ -13,14 +13,6 @@ def add_square_into(val: IntBuf,
                     out: IntBuf,
                     pos: bool = True,
                     n: int = None):
-    add_raw_square_into(val, out, pos, n)
-    add_rem_square_into(val, out, pos, n)
-
-
-def add_raw_square_into(val: IntBuf,
-                    out: IntBuf,
-                    pos: bool = True,
-                    n: int = None):
     if n is None:
         n = ceil_power_of_2(len(val))
     n >>= 1
@@ -46,22 +38,21 @@ def add_raw_square_into(val: IntBuf,
         out[m:] -= out
         m >>= 1
 
+    add_rem_square_into(val, out, pos, n)
+
 
 def add_rem_square_into(val: IntBuf,
                     out: IntBuf,
-                    pos: bool = True,
-                    n: int = None):
-    if n is None:
-        n = ceil_power_of_2(len(val))
-    n >>= 1
+                    pos: bool,
+                    n: int):
     if n <= 2:
         return
 
     a = val[:n]
     b = val[n:]
     times_mul_inverse_1k1(n, out)
-    add_rem_square_into(a, out, pos, n)
-    add_rem_square_into(b, out[n:], not pos)
+    add_rem_square_into(a, out, pos, n >> 1)
+    add_rem_square_into(b, out[n:], not pos, n >> 1)
     out[n:] -= out[:]
 
     c = a.padded(1)
