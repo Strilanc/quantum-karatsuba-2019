@@ -1,8 +1,8 @@
 from .int_buffer import IntBuf
 
 
-def add_square_into(val: IntBuf, out: IntBuf, pos: bool = True):
-    n = len(val) >> 1
+def add_square_into(val: IntBuf, out: IntBuf, pos: bool = True, pad: int = 0, pad_fill: int = 0):
+    n = (len(val) - pad) >> 1
     if n <= 2:
         if pos:
             out += int(val)**2
@@ -13,14 +13,18 @@ def add_square_into(val: IntBuf, out: IntBuf, pos: bool = True):
     a = val[:n]
     b = val[n:]
     out *= modinv(2**n - 1, 1 << len(out))
-    add_square_into(a, out, not pos)
-    add_square_into(b, out[n:], pos)
-    out *= 2**n - 1
+    add_square_into(a, out, not pos, 0, pad_fill)
+    add_square_into(b, out[n:], pos, pad, pad_fill)
+    out *= -1
+    out[n:] -= out[:]
     assert len(b) >= len(a)
-    c = b.padded(1)
-    c += a
-    add_square_into(c, out[n:], pos)
-    c -= a
+    pad_fill += 1
+    if pad_fill >= 1 << pad:
+        pad += 1
+        b = b.padded(1)
+    b += a
+    add_square_into(b, out[n:], pos, pad, pad_fill)
+    b -= a
 
 
 def egcd(a, b):
