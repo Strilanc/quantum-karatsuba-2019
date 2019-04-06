@@ -1,8 +1,8 @@
 import math
 import random
-from typing import Iterable, Sequence, List, Tuple, Any
+from typing import Iterable, Sequence, List, Tuple, Any, Union
 
-from .int_buffer import IntBuf, RawIntBuffer, RawWindowBuffer, RawConcatBuffer
+from int_buffer import IntBuf, RawIntBuffer, RawWindowBuffer, RawConcatBuffer
 
 
 def ceil_power_of_2(n: int) -> int:
@@ -95,10 +95,10 @@ def split_into_pieces(value: int, piece_size: int, piece_count: int) -> List[Mut
     return result
 
 
-def fuse_pieces(pieces: List[MutableInt], piece_size: int) -> int:
+def fuse_pieces(pieces: List[Union[int, MutableInt, IntBuf]], piece_size: int) -> int:
     result = 0
     for i, p in enumerate(pieces):
-        result += p.val << (i * piece_size)
+        result += int(p) << (i * piece_size)
     return result
 
 
