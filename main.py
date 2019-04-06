@@ -1,7 +1,7 @@
 import math
 
 from int_buffer import IntBuf
-from kara2 import add_square_into_mut, SquareStatsTracker
+from kara import add_square_into_mut, SquareStatsTracker
 import matplotlib.pyplot as plt
 
 
