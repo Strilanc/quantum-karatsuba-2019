@@ -60,7 +60,11 @@
     operation PlusEqual (lvalue: LittleEndian, offset: LittleEndian) : Unit {
         body (...) {
             using (carryIn = Qubit()) {
-                PlusEqualWithCarry(lvalue, offset, carryIn);
+                let trimmedOffset = LittleEndian(offset![0..Min([Length(lvalue!), Length(offset!)])-1]);
+                using (pad = Qubit[Max([0, Length(lvalue!) - Length(trimmedOffset!) - 1])]) {
+                    let paddedOffset = LittleEndian(offset! + pad);
+                    PlusEqualWithCarry(lvalue, paddedOffset, carryIn);
+                }
             }
         }
         adjoint auto;
