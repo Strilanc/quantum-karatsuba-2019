@@ -202,50 +202,80 @@ def add_square_into_pieces_using_generated_blocks(input_pieces: List[MutableInt]
 
     def f(step):
         for i in range(step, 2 * n):
-            output_pieces[i] += output_pieces[i - step]
-    def gi(step):
-        for i in range(step, n):
-            if i & step:
-                input_pieces[i] += input_pieces[i - step]
-
-    def g(step):
-        for i in range(step, n)[::-1]:
-            if i & step:
-                input_pieces[i] -= input_pieces[i - step]
+            # if i & locked_to_one == locked_to_one:
+                output_pieces[i] += output_pieces[i - step]
     def fi(step):
         for i in range(step, 2 * n)[::-1]:
-            output_pieces[i] -= output_pieces[i - step]
+            # if i & locked_to_one == locked_to_one:
+                output_pieces[i] -= output_pieces[i - step]
+
+    def g(step):
+        for i in mask_iter(locked_to_one ^ mask):
+            i ^= mask
+            if i & step:
+                input_pieces[i] -= input_pieces[i - step]
+    def gi(step):
+        for i in mask_iter(locked_to_one ^ mask):
+            i ^= mask
+            if i & step:
+                input_pieces[i] += input_pieces[i - step]
 
     n = len(input_pieces)
     assert n == ceil_power_of_2(n)
     mask = n - 1
 
+    locked_to_one = 0
+    locks = []
     for step in set_bit_vals(mask)[::-1]:
         gi(step)
+        print("LOCK", step)
+        locks.append(step)
+        locked_to_one |= step
 
     for mode in range(n):
         if mode:
             k = int(math.log2(power_of_two_ness(mode)))
-            for i in range(k):
-                step = 1 << i
-                gi(step)
-                fi(step)
+
             step = 1 << k
+            print("UNLOCK", step)
+            assert locks.pop() == step
+            locked_to_one &= ~step
             f(step)
             g(step)
 
+            for i in range(k)[::-1]:
+                step = 1 << i
+                gi(step)
+                fi(step)
+                print("LOCK", step)
+                locks.append(step)
+                locked_to_one |= step
+
+        assert locked_to_one == mode ^ mask, (locked_to_one, mode)
+        # print(mode, len(mask_iter(mode)))
         for i in mask_iter(mode):
-            i |= ~mode & mask
+            assert not i & locked_to_one
+            i ^= mask
             sign = -1 if hamming_seq(i & mode) else +1
             output_pieces[i] += int(input_pieces[i])**2 * sign
 
-    v = 1
-    while v < n:
-        gi(v)
-        fi(v)
-        v <<= 1
+    assert locked_to_one == 0
+    v = n >> 1
+    while v >= 1:
+        step = v
+        gi(step)
+        fi(step)
+        print("LOCK", step)
+        locks.append(step)
+        locked_to_one |= step
+        v >>= 1
+    assert locked_to_one == mask
 
-    for step in set_bit_vals(mask)[::-1]:
+    print("CLEANUP")
+    for step in set_bit_vals(mask):
+        print("UNLOCK", step)
+        assert locks.pop() == step
+        locked_to_one &= ~step
         g(step)
 
 
