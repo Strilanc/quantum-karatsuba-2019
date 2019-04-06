@@ -1,4 +1,4 @@
-from .int_buffer import IntBuf, RawIntBuffer, RawConcatBuffer, RawWindowBuffer
+from int_buffer import IntBuf, RawIntBuffer, RawConcatBuffer, RawWindowBuffer
 
 
 def test_int_buffer():

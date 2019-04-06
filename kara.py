@@ -3,7 +3,7 @@ import random
 from typing import Iterable, Sequence, List, Tuple, Any
 
 from int_buffer import IntBuf, RawIntBuffer, RawWindowBuffer, RawConcatBuffer
-from util import MutableInt, hamming_seq, ceil_power_of_2, add_into_pieces, split_into_pieces, fuse_pieces
+from util import MutableInt, hamming_seq, ceil_power_of_2, add_into_pieces, split_into_pieces, fuse_pieces, popcnt
 
 
 class SquareStatsTracker:
@@ -28,19 +28,30 @@ def add_square_into_mut(
 
     input_pieces_buf = []
     in_piece_count = int(math.ceil(n / piece_size))
-    folds = int(math.ceil(math.log2(max(1, in_piece_count))))
+    workspace = []
+    work_piece_size = piece_size * 2 + 2*int(math.ceil(math.log2(in_piece_count)))
     for k in range(0, len(input), piece_size):
+        folds = popcnt(k // piece_size)
         input_pieces_buf.append(input[k:k+piece_size].padded(folds))
+        workspace.append(IntBuf.zero(work_piece_size))
+        workspace.append(IntBuf.zero(work_piece_size))
 
-    output_pieces = split_into_pieces(int(output), piece_size, in_piece_count * 2)
-    output_pieces_buf = []
-    for p in output_pieces:
-        b = IntBuf.zero(piece_size*2 + 10)
-        b[:] = int(p)
-        output_pieces_buf.append(b)
+    workspace1 = IntBuf.zero(len(output))
+    workspace2 = IntBuf.zero(len(output))
+    workspace3 = IntBuf.zero(len(output))
+    work_regs = []
+    workpiece_sum_pad_len = 2*int(math.ceil(math.log2(in_piece_count)))
+    for k in range(0, len(output), piece_size):
+        p1 = workspace1[k:k+piece_size]
+        p2 = workspace2[k:k+piece_size]
+        p3 = workspace3[k:k+workpiece_sum_pad_len]
+        work_regs.append(p1.then(p2).then(p3))
 
-    _add_square_into_pieces(input_pieces_buf, output_pieces_buf, pos=True, stats=stats)
-    output[:] = fuse_pieces(output_pieces_buf, piece_size)
+    _add_square_into_pieces(input_pieces_buf, work_regs, pos=True, stats=stats)
+    output += workspace1
+    output[piece_size:] += workspace2
+    output[piece_size*2:] += workspace3
+    _add_square_into_pieces(input_pieces_buf, work_regs, pos=False, stats=stats)
 
 
 def _add_square_into_pieces(input_pieces: List[IntBuf],

@@ -1,7 +1,7 @@
 import random
 
-from .int_buffer import IntBuf
-from .util import (
+from int_buffer import IntBuf
+from util import (
     mask_iter, set_bit_vals, power_of_two_ness, ceil_lg2, split_into_pieces, fuse_pieces, add_into_pieces, MutableInt,
 )
 

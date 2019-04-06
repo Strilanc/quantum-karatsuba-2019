@@ -1,7 +1,7 @@
 import random
 
-from .int_buffer import IntBuf
-from .kara import add_square_into_mut, SquareStatsTracker
+from int_buffer import IntBuf
+from kara import add_square_into_mut, SquareStatsTracker
 
 
 def test_add_square_into_small():

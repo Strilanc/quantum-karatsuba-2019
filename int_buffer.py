@@ -229,6 +229,9 @@ class IntBuf:
     def zero(cls, length: int) -> 'IntBuf':
         return IntBuf(RawIntBuffer(0, length))
 
+    def then(self, other: 'IntBuf') -> 'IntBuf':
+        return IntBuf(RawConcatBuffer(self._buf, other._buf))
+
     def __getitem__(self, item):
         if isinstance(item, int):
             index = range(0, len(self._buf))[item]
