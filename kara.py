@@ -199,33 +199,54 @@ def add_square_into_pieces(input_pieces: List[MutableInt],
 
 def add_square_into_pieces_using_generated_blocks(input_pieces: List[MutableInt],
                            output_pieces: List[MutableInt]):
+
+    def f(step):
+        for i in range(step, 2 * n):
+            output_pieces[i] += output_pieces[i - step]
+    def gi(step):
+        for i in range(step, n):
+            if i & step:
+                input_pieces[i] += input_pieces[i - step]
+
+    def g(step):
+        for i in range(step, n)[::-1]:
+            if i & step:
+                input_pieces[i] -= input_pieces[i - step]
+    def fi(step):
+        for i in range(step, 2 * n)[::-1]:
+            output_pieces[i] -= output_pieces[i - step]
+
     n = len(input_pieces)
     assert n == ceil_power_of_2(n)
     mask = n - 1
+
+    for step in set_bit_vals(mask)[::-1]:
+        gi(step)
+
     for mode in range(n):
-
-        for step in set_bit_vals(mode):
-            for i in range(step, 2 * n):
-                output_pieces[i] += output_pieces[i - step]
-
-        for step in set_bit_vals(mode ^ mask):
-            for i in range(step, n):
-                if i & step:
-                    input_pieces[i] += input_pieces[i - step]
+        if mode:
+            k = int(math.log2(power_of_two_ness(mode)))
+            for i in range(k):
+                step = 1 << i
+                gi(step)
+                fi(step)
+            step = 1 << k
+            f(step)
+            g(step)
 
         for i in mask_iter(mode):
             i |= ~mode & mask
             sign = -1 if hamming_seq(i & mode) else +1
             output_pieces[i] += int(input_pieces[i])**2 * sign
 
-        for step in set_bit_vals(mode ^ mask)[::-1]:
-            for i in range(step, n)[::-1]:
-                if i & step:
-                    input_pieces[i] -= input_pieces[i-step]
+    v = 1
+    while v < n:
+        gi(v)
+        fi(v)
+        v <<= 1
 
-        for step in set_bit_vals(mode)[::-1]:
-            for i in range(step, 2 * n)[::-1]:
-                output_pieces[i] -= output_pieces[i - step]
+    for step in set_bit_vals(mask)[::-1]:
+        g(step)
 
 
 # def add_square_into_pieces(input_pieces: List[int],
