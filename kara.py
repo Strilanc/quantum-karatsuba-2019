@@ -63,7 +63,7 @@ def add_square_into(val: IntBuf,
 
 
 class MutableInt:
-    def __init__(self, val):
+    def __init__(self, val: int):
         self.val = val
 
     def __int__(self):
@@ -200,22 +200,34 @@ def add_square_into_pieces(input_pieces: List[MutableInt],
 def add_square_into_pieces_using_generated_blocks(input_pieces: List[MutableInt],
                            output_pieces: List[MutableInt]):
 
+    print()
+    f_steps = []
+    g_steps = []
     def f(step):
+        print("MIX", step, f_locks)
+        f_steps.append((step, f_mixed))
         for i in range(step, 2 * n):
-            # if i & locked_to_one == locked_to_one:
+            # if (i & ~n) & f_mixed == (i & ~n) ^ (mask & ~f_mixed):
                 output_pieces[i] += output_pieces[i - step]
     def fi(step):
+        print("---", step, f_locks)
+        assert f_steps.pop() == (step, f_mixed)
         for i in range(step, 2 * n)[::-1]:
-            # if i & locked_to_one == locked_to_one:
+            # if (i & ~n) & f_mixed == (i & ~n) ^ (mask & ~f_mixed):
+            # if i & (f_mixed | n) == f_mixed | n:
                 output_pieces[i] -= output_pieces[i - step]
 
     def g(step):
-        for i in mask_iter(locked_to_one ^ mask):
+        # print("G", step, (locked_to_one))
+        assert g_steps.pop() == (step, g_locked_to_one)
+        for i in mask_iter(g_locked_to_one ^ mask):
             i ^= mask
             if i & step:
                 input_pieces[i] -= input_pieces[i - step]
     def gi(step):
-        for i in mask_iter(locked_to_one ^ mask):
+        # print("x", step, (locked_to_one))
+        g_steps.append((step, g_locked_to_one))
+        for i in mask_iter(g_locked_to_one ^ mask):
             i ^= mask
             if i & step:
                 input_pieces[i] += input_pieces[i - step]
@@ -224,59 +236,58 @@ def add_square_into_pieces_using_generated_blocks(input_pieces: List[MutableInt]
     assert n == ceil_power_of_2(n)
     mask = n - 1
 
-    locked_to_one = 0
-    locks = []
+    g_locked_to_one = 0
+    g_locks = []
     for step in set_bit_vals(mask)[::-1]:
         gi(step)
-        print("LOCK", step)
-        locks.append(step)
-        locked_to_one |= step
+        g_locks.append(step)
+        g_locked_to_one |= step
+
+    f_mixed = 0
+    f_locks = []
 
     for mode in range(n):
         if mode:
             k = int(math.log2(power_of_two_ness(mode)))
 
+            for i in range(k):
+                step = 1 << i
+                fi(step)
+                f_mixed &= ~step
+                assert f_locks.pop() == step
+
             step = 1 << k
-            print("UNLOCK", step)
-            assert locks.pop() == step
-            locked_to_one &= ~step
+            assert g_locks.pop() == step
+            f_locks.append(step)
+            g_locked_to_one &= ~step
+            f_mixed |= step
             f(step)
             g(step)
 
             for i in range(k)[::-1]:
                 step = 1 << i
                 gi(step)
-                fi(step)
-                print("LOCK", step)
-                locks.append(step)
-                locked_to_one |= step
+                g_locks.append(step)
+                g_locked_to_one |= step
 
-        assert locked_to_one == mode ^ mask, (locked_to_one, mode)
-        # print(mode, len(mask_iter(mode)))
+        assert g_locked_to_one == mode ^ mask, (g_locked_to_one, mode)
+        assert f_mixed == mode
+        print('ROUND', mode, len(mask_iter(mode)), bin(f_mixed)[2:].rjust(10, '0'), bin(g_locked_to_one)[2:].rjust(10, '0'))
         for i in mask_iter(mode):
-            assert not i & locked_to_one
+            assert not i & g_locked_to_one
             i ^= mask
+            assert i & f_mixed == i ^ (mask & ~f_mixed)
             sign = -1 if hamming_seq(i & mode) else +1
             output_pieces[i] += int(input_pieces[i])**2 * sign
 
-    assert locked_to_one == 0
-    v = n >> 1
-    while v >= 1:
+    assert g_locked_to_one == 0
+    v = 1
+    while v < n:
         step = v
-        gi(step)
         fi(step)
-        print("LOCK", step)
-        locks.append(step)
-        locked_to_one |= step
-        v >>= 1
-    assert locked_to_one == mask
-
-    print("CLEANUP")
-    for step in set_bit_vals(mask):
-        print("UNLOCK", step)
-        assert locks.pop() == step
-        locked_to_one &= ~step
-        g(step)
+        f_mixed &= ~step
+        assert f_locks.pop() == step
+        v <<= 1
 
 
 # def add_square_into_pieces(input_pieces: List[int],
