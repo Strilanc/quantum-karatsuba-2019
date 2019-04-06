@@ -112,8 +112,8 @@ def add_into_pieces(input_pieces: List[MutableInt],
 
 def generate_blocks(n: int):
     result = []
-    for i in range(n):
-        for s in range(n):
+    for s in range(n):
+        for i in range(n):
             if i | s == n - 1:
                 result.append((i, s, -1 if hamming_seq(i & s) else +1))
     return result
@@ -195,6 +195,35 @@ def add_square_into_pieces(input_pieces: List[MutableInt],
                            s2=s2 | h,
                            record=record)
     add_into_pieces(input_pieces[:h], input_pieces[h:], factor=-1)
+
+
+def add_square_into_pieces_using_generated_blocks(input_pieces: List[MutableInt],
+                           output_pieces: List[MutableInt]):
+    n = len(input_pieces)
+    assert n == ceil_power_of_2(n)
+    mask = n - 1
+    for s in range(n):
+
+        for h in set_bit_vals(s)[::-1]:
+            for i in range(h, 2 * n):
+                output_pieces[i] += output_pieces[i - h]
+        for h in set_bit_vals(s ^ mask)[::-1]:
+            for i in range(n):
+                if i & h:
+                    input_pieces[i] += input_pieces[i - h]
+
+        for k in mask_iter(s):
+            k |= ~s & mask
+            sign = -1 if hamming_seq(k & s) else +1
+            output_pieces[k] += int(input_pieces[k])**2 * sign
+
+        for h in set_bit_vals(s ^ mask):
+            for i in range(n)[::-1]:
+                if i & h:
+                    input_pieces[i] -= input_pieces[i-h]
+        for h in set_bit_vals(s):
+            for i in range(h, 2 * n)[::-1]:
+                output_pieces[i] -= output_pieces[i - h]
 
 
 # def add_square_into_pieces(input_pieces: List[int],
@@ -302,7 +331,6 @@ def add_square_into_alt(val: IntBuf, out: IntBuf):
     for b in range(s)[::-1]:
         v = 1 << b
         os.append([int(o) for o in out_pieces])
-        print('REMOVE', xx, v, os[-1])
         for p in mask_iter(xx):
             if p + v < len(out_pieces):
                 print(p+v, '<-', p, end=' ')
@@ -317,7 +345,6 @@ def add_square_into_alt(val: IntBuf, out: IntBuf):
             for r in range(k):
                 v = 1 << r
                 os.append([int(o) for o in out_pieces])
-                print('REMOVE', v, os[-1])
                 for p in mask_iter(prev_m ^ mask):
                     if p + v < len(out_pieces):
                         print(p + v, '<-', p, end=' ')
