@@ -216,6 +216,12 @@ class IntBuf:
     def __init__(self, buffer: Buffer):
         self._buf = buffer
 
+    def signed_int(self):
+        result = int(self)
+        if self[len(self) - 1]:
+            result -= 1 << len(self)
+        return result
+
     def __len__(self):
         return len(self._buf)
 
