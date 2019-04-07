@@ -1,9 +1,8 @@
 import math
-import random
-from typing import Iterable, Sequence, List, Tuple, Any
+from typing import List
 
-from int_buffer import IntBuf, RawIntBuffer, RawWindowBuffer, RawConcatBuffer
-from util import MutableInt, hamming_seq, ceil_power_of_2, add_into_pieces, split_into_pieces, fuse_pieces, popcnt
+from int_buffer import IntBuf
+from util import ceil_power_of_2, popcnt
 
 
 def add_square_into_mut(
@@ -38,36 +37,28 @@ def _add_square_into_pieces(input_pieces: List[IntBuf],
     if not input_pieces:
         return
     if len(input_pieces) == 1:
-        output_pieces[0] += input_pieces[0].signed_int()**2 * (+1 if pos else -1)
+        output_pieces[0] += int(input_pieces[0])**2 * (+1 if pos else -1)
         return
     h = len(input_pieces) >> 1
-    #print("STATUS AT START", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
 
     for i in range(h, len(output_pieces)):
         output_pieces[i] += output_pieces[i - h]
-    #print("STATUS AFTER inv mul", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
     _add_square_into_pieces(
         input_pieces=input_pieces[:h],
         output_pieces=output_pieces[:2*h],
         pos=pos)
-    #print("STATUS AFTER +=a^2  ", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
     _add_square_into_pieces(
         input_pieces=input_pieces[h:2*h],
         output_pieces=output_pieces[h:3*h],
         pos=not pos)
-    #print("STATUS AFTER -=b^2  ", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
     for i in range(h, len(output_pieces))[::-1]:
         output_pieces[i] -= output_pieces[i - h]
-    #print("STATUS AFTER mul    ", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
 
     for i in range(h):
         input_pieces[i] += input_pieces[i + h]
-    #print("STATUS AFTER sum    ", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
     _add_square_into_pieces(
         input_pieces=input_pieces[:h],
         output_pieces=output_pieces[h:3*h],
         pos=pos)
-    #print("STATUS AFTER +=a+b^2", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])
     for i in range(h):
         input_pieces[i] -= input_pieces[i + h]
-    #print("STATUS AFTER unsum  ", [e.signed_int() for e in input_pieces], [e.signed_int() for e in output_pieces])

@@ -2,6 +2,7 @@ from typing import Union, Iterable
 
 
 class Buffer:
+    """An abstract bit array interface."""
     def __getitem__(self, item) -> int:
         raise NotImplementedError()
 
@@ -13,6 +14,8 @@ class Buffer:
 
 
 class RawIntBuffer(Buffer):
+    """A bit array backed by the bits in a python int."""
+
     def __init__(self, val: int, length: int):
         assert 0 <= val < 1 << length
         self._val = val
@@ -71,6 +74,8 @@ class RawIntBuffer(Buffer):
 
 
 class RawConcatBuffer(Buffer):
+    """Exposes two buffers as one concatenated buffer."""
+
     def __init__(self, buf0: Buffer, buf1: Buffer):
         assert buf0 is not buf1
         self.buf0 = buf0
@@ -145,6 +150,8 @@ class RawConcatBuffer(Buffer):
 
 
 class RawWindowBuffer(Buffer):
+    """Exposes a subset of a buffer as a buffer."""
+
     def __new__(cls,
                 buf: Buffer,
                 start: int,
@@ -214,10 +221,16 @@ class RawWindowBuffer(Buffer):
 
 
 class IntBuf:
+    """A fixed-width unsigned integer backed by a mutable bit buffer.
+
+    Basically a complicated pointer into allocated memory.
+    """
+
     def __init__(self, buffer: Buffer):
         self._buf = buffer
 
-    def signed_int(self):
+    def signed_int(self) -> int:
+        """Return value as a signed int instead of an unsigned int."""
         if not len(self):
             return 0
         result = int(self)
@@ -226,22 +239,32 @@ class IntBuf:
         return result
 
     def __len__(self):
+        """The number of bits in this fixed-width integer."""
         return len(self._buf)
 
     def __int__(self):
+        """The unsigned value of this fixed-width integer."""
         return self._buf[0:len(self._buf)]
 
     def padded(self, pad_len: int) -> 'IntBuf':
+        """Returns a variant of this IntBuf with an extended width.
+
+        The extra bits go at the end (the most significant side). The receiving
+        IntBuf is not modified, but the head of the returned IntBuf is pointed
+        at the same memory so modifying one's value will modify the other's.
+        """
         if pad_len == 0:
             return self
         return IntBuf(RawConcatBuffer(self._buf, RawIntBuffer(0, pad_len)))
 
     @classmethod
     def zero(cls, length: int) -> 'IntBuf':
+        """Returns a fresh zero'd IntBuf with the given length."""
         return IntBuf(RawIntBuffer(0, length))
 
     @classmethod
     def concat(cls, bufs: Iterable['IntBuf']) -> 'IntBuf':
+        """An IntBuf backed by the concatenated buffers of the given IntBufs."""
         frozen = list(bufs)
         if not frozen:
             return IntBuf.zero(0)
@@ -251,9 +274,12 @@ class IntBuf:
         return seed
 
     def then(self, other: 'IntBuf') -> 'IntBuf':
+        """An IntBuf backed by the concatenated buffers of the given IntBufs."""
         return IntBuf(RawConcatBuffer(self._buf, other._buf))
 
     def __getitem__(self, item):
+        """Get a bit or mutable window into this IntBuf."""
+
         if isinstance(item, int):
             index = range(0, len(self._buf))[item]
             return self._buf[index]
@@ -267,6 +293,8 @@ class IntBuf:
         return NotImplemented
 
     def __setitem__(self, key, value):
+        """Overwrite a bit or window in this IntBuf."""
+
         if isinstance(key, int):
             index = range(0, len(self._buf))[key]
             self._buf[index] = value
