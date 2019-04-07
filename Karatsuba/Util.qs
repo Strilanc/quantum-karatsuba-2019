@@ -32,4 +32,37 @@
     function FloorLg2(n: Int) : Int {
         return FloorBigLg2(ToBigInt(n));
     }
+
+    operation MeasureBigInteger(qs: LittleEndian) : BigInt {
+        mutable result = ToBigInt(0);
+        mutable i = 0;
+        for (q in qs!) {
+            if (Measure([PauliZ], [q]) == One) {
+                set result = result + (ToBigInt(1) <<< i);
+            }
+            set i = i + 1;
+        }
+        return result;
+    }
+
+    operation MeasureSignedBigInteger(qs: LittleEndian) : BigInt {
+        mutable result = MeasureBigInteger(qs);
+        if (result >= ToBigInt(1) <<< (Length(qs!) - 1)) {
+            set result = result - (ToBigInt(1) <<< Length(qs!));
+        }
+        return result;
+    }
+
+    operation MeasureResetBigInteger(qs: LittleEndian) : BigInt {
+        mutable result = ToBigInt(0);
+        mutable i = 0;
+        for (q in qs!) {
+            if (Measure([PauliZ], [q]) == One) {
+                set result = result + (ToBigInt(1) <<< i);
+                X(q);
+            }
+            set i = i + 1;
+        }
+        return result;
+    }
 }

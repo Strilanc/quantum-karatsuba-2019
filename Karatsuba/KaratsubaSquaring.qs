@@ -17,7 +17,7 @@
             mutable input_pieces = new LittleEndian[piece_count];
             for (k in 0..piece_count-1) {
                 let low = k*piece_size;
-                let high = Max([low+piece_size-1, Length(offset!)-1]);
+                let high = Min([low+piece_size-1, Length(offset!)-1]);
                 set input_pieces[k] = LittleEndian(
                     offset![low..high] +  // Raw input bits.
                     i0[low..high]);       // Padding so that input pieces can be added together.
@@ -38,22 +38,22 @@
             }
 
             // Initialize temporary registers such that o0 + (o1<<h) + (o2<<2h) = input**2.
-            _PlusEqualSquareUsingKaratsubaOnPieces(input_pieces, output_pieces);
+            _PlusEqualSquareUsingKaratsubaOnPieces(output_pieces, input_pieces);
             // Use temporary registers to offset lvalue.
             PlusEqual(lvalue, LittleEndian(o0));
             PlusEqual(LittleEndian(lvalue![piece_size..Length(lvalue!)-1]), LittleEndian(o1));
             PlusEqual(LittleEndian(lvalue![2*piece_size..Length(lvalue!)-1]), LittleEndian(o2));
             // Uncompute temporary registers.
-            Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(input_pieces, output_pieces);
+            Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(output_pieces, input_pieces);
         }
     }
 
-    operation _PlusEqualSquareUsingKaratsubaOnPieces (input_pieces: LittleEndian[], output_pieces: LittleEndian[]) : Unit {
+    operation _PlusEqualSquareUsingKaratsubaOnPieces (output_pieces: LittleEndian[], input_pieces: LittleEndian[]) : Unit {
         body (...) {
             let n = Length(input_pieces);
             if (n <= 1) {
                 if (n == 1) {
-                    PlusEqualSquareUsingSchoolbook(input_pieces[0], output_pieces[0]);
+                    PlusEqualSquareUsingSchoolbook(output_pieces[0], input_pieces[0]);
                 }
             } else {
                 let h = n >>> 1;
@@ -71,12 +71,12 @@
                 }
                 // Recursive squared addition for a.
                 _PlusEqualSquareUsingKaratsubaOnPieces(
-                    input_pieces[0..h-1],
-                    output_pieces[0..2*h-1]);
+                    output_pieces[0..2*h-1],
+                    input_pieces[0..h-1]);
                 // Recursive squared addition for b.
                 Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(
-                    input_pieces[h..2*h-1],
-                    output_pieces[h..3*h-1]);
+                    output_pieces[h..3*h-1],
+                    input_pieces[h..2*h-1]);
                 // Multiply output by 1-2**h, completing the scaling of the previous two squared additions.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
@@ -92,8 +92,8 @@
                 }
                 // Recursive squared addition for a+b.
                 _PlusEqualSquareUsingKaratsubaOnPieces(
-                    input_pieces[h..2*h-1],
-                    output_pieces[h..3*h-1]);
+                    output_pieces[h..3*h-1],
+                    input_pieces[0..h-1]);
                 // Restore a.
                 for (i in 0..h-1) {
                     Adjoint PlusEqual(input_pieces[i], input_pieces[i + h]);

@@ -2,6 +2,7 @@
     open Microsoft.Quantum.Primitive;
     open Microsoft.Quantum.Canon;
     open Microsoft.Quantum.Extensions.Diagnostics;
+    open Microsoft.Quantum.Extensions.Convert;
     open Karatsuba;
 
     function AssertEq(x: Int, y: Int) : Unit {
@@ -21,6 +22,19 @@
         AssertEq(FloorLg2(9), 3);
         AssertEq(FloorLg2(10), 3);
         AssertEq(FloorLg2(11), 3);
+    }
+
+    operation ToffoliSim_MeasureBigIntegerTest() : Unit {
+        using (qs = Qubit[100]) {
+            X(qs[5]);
+            X(qs[95]);
+            let r = MeasureBigInteger(LittleEndian(qs));
+            if (r != ((ToBigInt(1) <<< 95) + ToBigInt(32))) {
+                fail "decoded wrong";
+            }
+            X(qs[5]);
+            X(qs[95]);
+        }
     }
 
     operation CeilLg2Test() : Unit {

@@ -2,8 +2,9 @@
     open Microsoft.Quantum.Primitive;
     open Microsoft.Quantum.Canon;
     open Microsoft.Quantum.Extensions.Diagnostics;
+    open Microsoft.Quantum.Extensions.Convert;
     open Karatsuba;
-    
+
     operation InitDual(qs: Qubit[]) : Unit {
         let n = Length(qs) >>> 1;
         for (i in 0..n-1) {

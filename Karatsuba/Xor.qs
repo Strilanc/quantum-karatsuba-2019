@@ -1,5 +1,6 @@
 ﻿namespace Karatsuba {
     open Microsoft.Quantum.Extensions.Bitwise;
+    open Microsoft.Quantum.Extensions.Convert;
     open Microsoft.Quantum.Primitive;
     open Microsoft.Quantum.Canon;
 
@@ -38,8 +39,17 @@
     /// The integer to xor into the target. The 'k' in 'a ^^^= k'.
     operation XorEqualConst (lvalue: LittleEndian, mask: Int) : Unit {
         body (...) {
+            XorEqualBigInt(lvalue, ToBigInt(mask));
+        }
+        adjoint self;
+        controlled auto;
+        controlled adjoint self;
+    }
+
+    operation XorEqualBigInt (lvalue: LittleEndian, mask: BigInt) : Unit {
+        body (...) {
             for (i in 0..Length(lvalue!)-1) {
-                if (((mask >>> i) &&& 1) != 0) {
+                if (((mask >>> i) &&& ToBigInt(1)) != ToBigInt(0)) {
                     X(lvalue![i]);
                 }
             }

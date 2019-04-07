@@ -45,10 +45,11 @@
                 using (target = Qubit[k]) {
                     let src = LittleEndian(offset);
                     let dst = LittleEndian(target);
-                    let expectedSrc = (1 <<< 31) + k*k;
-                    let expectedDst = (expectedSrc + k) % (1 <<< k);
+                    let expectedSrc = k*k; // RandomIntPow2(32);
+                    let expectedStart = k;  // RandomIntPow2(k);
+                    let expectedDst = (expectedStart + expectedSrc) % (1 <<< k);
                     XorEqualConst(src, expectedSrc);
-                    XorEqualConst(dst, k);
+                    XorEqualConst(dst, expectedStart);
                     PlusEqual(dst, src);
                     let actualSrc = MeasureInteger(src);
                     let actualDst = MeasureInteger(dst);
