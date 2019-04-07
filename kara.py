@@ -31,7 +31,7 @@ def add_square_into_mut(
     workspace = []
     work_piece_size = piece_size * 2 + 2*int(math.ceil(math.log2(in_piece_count)))
     for k in range(0, len(input), piece_size):
-        folds = popcnt(k // piece_size)
+        folds = popcnt((n - 1) ^ (k // piece_size))
         input_pieces_buf.append(input[k:k+piece_size].padded(folds))
         workspace.append(IntBuf.zero(work_piece_size))
         workspace.append(IntBuf.zero(work_piece_size))
@@ -88,13 +88,13 @@ def _add_square_into_pieces(input_pieces: List[IntBuf],
     for i in range(h):
         stats.raw += len(input_pieces[i + h])
         stats.word_additions += 1
-        input_pieces[i + h] += input_pieces[i]
+        input_pieces[i] += input_pieces[i + h]
     _add_square_into_pieces(
-        input_pieces=input_pieces[h:2*h],
+        input_pieces=input_pieces[0:h],
         output_pieces=output_pieces[h:3*h],
         pos=pos,
         stats=stats)
     for i in range(h):
         stats.raw += len(input_pieces[i + h])
         stats.word_additions += 1
-        input_pieces[i + h] -= input_pieces[i]
+        input_pieces[i] -= input_pieces[i + h]
