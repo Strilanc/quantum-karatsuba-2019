@@ -24,11 +24,11 @@
         AssertEq(FloorLg2(11), 3);
     }
 
-    operation ToffoliSim_MeasureBigIntegerTest() : Unit {
+    operation ToffoliSim_MeasureBigIntTest() : Unit {
         using (qs = Qubit[100]) {
             X(qs[5]);
             X(qs[95]);
-            let r = MeasureBigInteger(LittleEndian(qs));
+            let r = MeasureBigInt(LittleEndian(qs));
             if (r != ((ToBigInt(1) <<< 95) + ToBigInt(32))) {
                 fail "decoded wrong";
             }
@@ -50,5 +50,15 @@
         AssertEq(CeilLg2(9), 4);
         AssertEq(CeilLg2(10), 4);
         AssertEq(CeilLg2(11), 4);
+    }
+
+    operation CeilMultipleTest() : Unit {
+        AssertEq(CeilMultiple(0, 3), 0);
+        AssertEq(CeilMultiple(1, 3), 3);
+        AssertEq(CeilMultiple(2, 3), 3);
+        AssertEq(CeilMultiple(3, 3), 3);
+        AssertEq(CeilMultiple(4, 3), 6);
+        AssertEq(CeilMultiple(5, 3), 6);
+        AssertEq(CeilMultiple(119, 11), 121);
     }
 }

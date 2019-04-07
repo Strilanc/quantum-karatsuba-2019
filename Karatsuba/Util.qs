@@ -18,6 +18,10 @@
         return m;
     }
 
+    function CeilMultiple(numerator: Int, multiple: Int) : Int {
+        return ((numerator + multiple - 1) / multiple) * multiple;
+    }
+
     function CeilBigLg2(n: BigInt) : Int {
         if (n <= ToBigInt(1)) {
             return 0;
@@ -29,11 +33,15 @@
         return CeilBigLg2(ToBigInt(n));
     }
 
+    function CeilPowerOf2(n: Int) : Int {
+        return 1 <<< CeilLg2(n);
+    }
+
     function FloorLg2(n: Int) : Int {
         return FloorBigLg2(ToBigInt(n));
     }
 
-    operation MeasureBigInteger(qs: LittleEndian) : BigInt {
+    operation MeasureBigInt(qs: LittleEndian) : BigInt {
         mutable result = ToBigInt(0);
         mutable i = 0;
         for (q in qs!) {
@@ -45,15 +53,15 @@
         return result;
     }
 
-    operation MeasureSignedBigInteger(qs: LittleEndian) : BigInt {
-        mutable result = MeasureBigInteger(qs);
+    operation MeasureSignedBigInt(qs: LittleEndian) : BigInt {
+        mutable result = MeasureBigInt(qs);
         if (result >= ToBigInt(1) <<< (Length(qs!) - 1)) {
             set result = result - (ToBigInt(1) <<< Length(qs!));
         }
         return result;
     }
 
-    operation MeasureResetBigInteger(qs: LittleEndian) : BigInt {
+    operation MeasureResetBigInt(qs: LittleEndian) : BigInt {
         mutable result = ToBigInt(0);
         mutable i = 0;
         for (q in qs!) {

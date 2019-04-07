@@ -3,58 +3,71 @@
     open Microsoft.Quantum.Primitive;
     open Microsoft.Quantum.Canon;
 
+    /// # Summary
+    /// Performs a += b*b where a and b are little-endian quantum registers.
+    ///
+    /// Has gate complexity O(n^log_2(3)).
+    /// Has space complexity O(n).
+    ///
+    /// # Input
+    /// ## lvalue
+    /// The target of the addition. The 'a' in 'a += b*b'.
+    /// ## offset
+    /// The integer amount to square and add into the target. The 'b' in 'a += b*b'.
     operation PlusEqualSquareUsingKaratsuba(lvalue: LittleEndian, offset: LittleEndian) : Unit {
-        let n = Length(offset!);
-        let piece_size = Max([32, 2*CeilLg2(Length(offset!))]);
-        let piece_count = (n + piece_size  - 1) / piece_size;
-        let m = piece_count * piece_size;
-
-        mutable ins = new LittleEndian[piece_count];
-
-        using (workspace = Qubit[7 * m]) {
-            // Prepare padded input pieces.
-            let i0 = workspace[0..m-1];
-            mutable input_pieces = new LittleEndian[piece_count];
-            for (k in 0..piece_count-1) {
-                let low = k*piece_size;
-                let high = Min([low+piece_size-1, Length(offset!)-1]);
-                set input_pieces[k] = LittleEndian(
-                    offset![low..high] +  // Raw input bits.
-                    i0[low..high]);       // Padding so that input pieces can be added together.
-            }
-
-            // Prepare padded output pieces to temporarily hold the square.
-            let o0 = workspace[1*m..3*m-1];
-            let o1 = workspace[3*m..5*m-1];
-            let o2 = workspace[5*m..7*m-1];
-            mutable output_pieces = new LittleEndian[piece_count*2];
-            for (k in 0..piece_count*2-1) {
-                let low = k*piece_size;
-                let high = low+piece_size-1;
-                set output_pieces[k] = LittleEndian(
-                    o0[low..high] +  // Basic room for output.
-                    o1[low..high] +  // Padding so each piece can hold a squared piece.
-                    o2[low..high]);  // Padding so that output pieces can be added together.
-            }
-
-            // Initialize temporary registers such that o0 + (o1<<h) + (o2<<2h) = input**2.
-            _PlusEqualSquareUsingKaratsubaOnPieces(output_pieces, input_pieces);
-            // Use temporary registers to offset lvalue.
-            PlusEqual(lvalue, LittleEndian(o0));
-            PlusEqual(LittleEndian(lvalue![piece_size..Length(lvalue!)-1]), LittleEndian(o1));
-            PlusEqual(LittleEndian(lvalue![2*piece_size..Length(lvalue!)-1]), LittleEndian(o2));
-            // Uncompute temporary registers.
-            Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(output_pieces, input_pieces);
+        body (...) {
+            let piece_size = Max([32, 2*CeilLg2(Length(offset!))]);
+            _PlusEqualSquareUsingKaratsuba_Helper(lvalue, offset, piece_size);
         }
+        adjoint auto;
+    }
+
+    operation _PlusEqualSquareUsingKaratsuba_Helper(lvalue: LittleEndian, offset: LittleEndian, piece_size: Int) : Unit {
+        body (...) {
+            let piece_count = CeilPowerOf2(CeilMultiple(Length(offset!), piece_size));
+            let in_buf_piece_size = piece_size + CeilLg2(piece_count);
+            let work_buf_piece_size = piece_size*2 + CeilLg2(piece_count)*4;
+
+            using (in_bufs_backing = Qubit[in_buf_piece_size * piece_count - Length(offset!)]) {
+                let in_bufs = SplitPadBuffer(offset!, in_bufs_backing, piece_size, in_buf_piece_size, piece_count);
+
+                using (work_bufs_backing = Qubit[work_buf_piece_size * piece_count * 2]) {
+                    let work_bufs = SplitBuffer(work_bufs_backing, work_buf_piece_size);
+
+                    // Add into workspaces, merge into output, then uncompute workspace.
+                    Message("COMPUTE");
+                    _PlusEqualSquareUsingKaratsubaOnPieces(work_bufs, in_bufs);
+                    Message("MERGE");
+                    Message("in_bufs");
+                    peekInts(in_bufs);
+                    Message("work_bufs");
+                    peekInts(work_bufs);
+                    for (i in 0..piece_size..work_buf_piece_size-1) {
+                        let target = LittleEndian(lvalue![i..Length(lvalue!)-1]);
+                        let shift = MergeBufferRanges(work_bufs, i, piece_size);
+                        PlusEqual(target, shift);
+                    }
+                    Message("UNCOMPUTE");
+                    Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(work_bufs, in_bufs);
+                }
+            }
+        }
+        adjoint auto;
     }
 
     operation _PlusEqualSquareUsingKaratsubaOnPieces (output_pieces: LittleEndian[], input_pieces: LittleEndian[]) : Unit {
         body (...) {
             let n = Length(input_pieces);
             if (n <= 1) {
+                Message("LEAF");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
                 if (n == 1) {
                     PlusEqualSquareUsingSchoolbook(output_pieces[0], input_pieces[0]);
                 }
+                Message("AFTER LEAF");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
             } else {
                 let h = n >>> 1;
 
@@ -69,18 +82,30 @@
                 for (i in h..Length(output_pieces) - 1) {
                     PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
+                Message("AFTER INVMUL");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
                 // Recursive squared addition for a.
                 _PlusEqualSquareUsingKaratsubaOnPieces(
                     output_pieces[0..2*h-1],
                     input_pieces[0..h-1]);
+                Message("AFTER +=a**2");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
                 // Recursive squared addition for b.
                 Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(
                     output_pieces[h..3*h-1],
                     input_pieces[h..2*h-1]);
+                Message("AFTER -=b**2");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
                 // Multiply output by 1-2**h, completing the scaling of the previous two squared additions.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
+                Message("AFTER MUL");
+                peekInts(input_pieces);
+                peekInts(output_pieces);
 
                 //-------------------------------
                 // Perform
@@ -101,5 +126,40 @@
             }
         }
         adjoint auto;
+    }
+
+    function SplitPadBuffer(buf: Qubit[], pad: Qubit[], base_piece_size: Int, desired_piece_size: Int, piece_count: Int) : LittleEndian[] {
+        mutable result = new LittleEndian[piece_count];
+        mutable k_pad = 0;
+        for (i in 0..piece_count-1) {
+            let k_buf = i*base_piece_size;
+            if (k_buf >= Length(buf)) {
+                set result[i] = LittleEndian(new Qubit[0]);
+            } else {
+                set result[i] = LittleEndian(buf[k_buf..Min([k_buf+base_piece_size, Length(buf)])-1]);
+            }
+            let missing = desired_piece_size - Length(result[i]!);
+            set result[i] = LittleEndian(result[i]! + pad[k_pad..k_pad+missing-1]);
+            set k_pad = k_pad + missing;
+        }
+        return result;
+    }
+
+    function SplitBuffer(buf: Qubit[], piece_size: Int) : LittleEndian[] {
+        mutable result = new LittleEndian[Length(buf)/piece_size];
+        for (i in 0..piece_size..Length(buf)-1) {
+            set result[i/piece_size] = LittleEndian(buf[i..i+piece_size-1]);
+        }
+        return result;
+    }
+
+    function MergeBufferRanges(work_registers: LittleEndian[], start: Int, len: Int) : LittleEndian {
+        mutable result = new Qubit[len*Length(work_registers)];
+        for (i in 0..Length(work_registers)-1) {
+            for (j in 0..len-1) {
+                set result[i*len + j] = (work_registers[i]!)[start+j];
+            }
+        }
+        return LittleEndian(result);
     }
 }
