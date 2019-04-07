@@ -2,7 +2,7 @@
     open Microsoft.Quantum.Extensions.Bitwise;
     open Microsoft.Quantum.Primitive;
     open Microsoft.Quantum.Canon;
-    
+
     /// # Summary
     /// Performs a += b + c where a and b are little-endian quantum registers and c is a carry qubit.
     ///
@@ -62,7 +62,7 @@
             using (carryIn = Qubit()) {
                 let trimmedOffset = LittleEndian(offset![0..Min([Length(lvalue!), Length(offset!)])-1]);
                 using (pad = Qubit[Max([0, Length(lvalue!) - Length(trimmedOffset!) - 1])]) {
-                    let paddedOffset = LittleEndian(offset! + pad);
+                    let paddedOffset = LittleEndian(trimmedOffset! + pad);
                     PlusEqualWithCarry(lvalue, paddedOffset, carryIn);
                 }
             }

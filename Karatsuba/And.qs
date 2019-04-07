@@ -5,21 +5,23 @@
 
     operation LetAnd(lvalue: Qubit, a: Qubit, b: Qubit) : Unit {
         body(...) {
-            H(lvalue);
-            T(lvalue);
-            CNOT(b, lvalue);
-            Adjoint T(lvalue);
-            CNOT(a, lvalue);
-            T(lvalue);
-            CNOT(b, lvalue);
-            Adjoint T(lvalue);
-            H(lvalue);
-            Adjoint S(lvalue);
+            CCNOT(a, b, lvalue);
+            //H(lvalue);
+            //T(lvalue);
+            //CNOT(b, lvalue);
+            //Adjoint T(lvalue);
+            //CNOT(a, lvalue);
+            //T(lvalue);
+            //CNOT(b, lvalue);
+            //Adjoint T(lvalue);
+            //H(lvalue);
+            //Adjoint S(lvalue);
         }
         adjoint (...) {
-            if (MResetX(lvalue) == One) {
-                CZ(a, b);
-            }
+            CCNOT(a, b, lvalue);
+            //if (MResetX(lvalue) == One) {
+            //    CZ(a, b);
+            //}
         }
     }
 
