@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Iterable
 
 
 class Buffer:
@@ -72,6 +72,7 @@ class RawIntBuffer(Buffer):
 
 class RawConcatBuffer(Buffer):
     def __init__(self, buf0: Buffer, buf1: Buffer):
+        assert buf0 is not buf1
         self.buf0 = buf0
         self.buf1 = buf1
 
@@ -217,6 +218,8 @@ class IntBuf:
         self._buf = buffer
 
     def signed_int(self):
+        if not len(self):
+            return 0
         result = int(self)
         if self[len(self) - 1]:
             result -= 1 << len(self)
@@ -229,11 +232,23 @@ class IntBuf:
         return self._buf[0:len(self._buf)]
 
     def padded(self, pad_len: int) -> 'IntBuf':
+        if pad_len == 0:
+            return self
         return IntBuf(RawConcatBuffer(self._buf, RawIntBuffer(0, pad_len)))
 
     @classmethod
     def zero(cls, length: int) -> 'IntBuf':
         return IntBuf(RawIntBuffer(0, length))
+
+    @classmethod
+    def concat(cls, bufs: Iterable['IntBuf']) -> 'IntBuf':
+        frozen = list(bufs)
+        if not frozen:
+            return IntBuf.zero(0)
+        seed = frozen[0]
+        for buf in frozen[1:]:
+            seed = seed.then(buf)
+        return seed
 
     def then(self, other: 'IntBuf') -> 'IntBuf':
         return IntBuf(RawConcatBuffer(self._buf, other._buf))

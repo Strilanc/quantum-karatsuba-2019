@@ -11,33 +11,26 @@ def add_mul_into_mut(
         input2: IntBuf,
         output: IntBuf,
         piece_size: int = 32):
-    assert len(input1) == len(input2)
-    n = len(input1)
-    piece_size = max(32, 2 * int(math.ceil(math.log2(n))))
+    n = ceil_power_of_2(max(len(input1), len(input2)))
+    input1 = input1.padded(n - len(input1))
+    input2 = input2.padded(n - len(input2))
 
-    in_piece_count = int(math.ceil(n / piece_size))
     input_pieces_buf1 = []
     input_pieces_buf2 = []
-    for k in range(0, len(input1), piece_size):
-        folds = popcnt((n - 1) ^ (k // piece_size))
+    in_piece_count = int(math.ceil(n / piece_size))
+    for j in range(in_piece_count):
+        k = j * piece_size
+        folds = popcnt((n - 1) ^ j)
         input_pieces_buf1.append(input1[k:k+piece_size].padded(folds))
         input_pieces_buf2.append(input2[k:k+piece_size].padded(folds))
 
-    workspace1 = IntBuf.zero(len(output))
-    workspace2 = IntBuf.zero(len(output))
-    workspace3 = IntBuf.zero(len(output))
-    work_regs = []
-    workpiece_sum_pad_len = 2*int(math.ceil(math.log2(in_piece_count)))
-    for k in range(0, len(output), piece_size):
-        p1 = workspace1[k:k+piece_size]
-        p2 = workspace2[k:k+piece_size]
-        p3 = workspace3[k:k+workpiece_sum_pad_len]
-        work_regs.append(p1.then(p2).then(p3))
+    work_piece_size = piece_size * 2 + popcnt(n-1) * 4
+    work_piece_size = int(math.ceil(work_piece_size / piece_size)) * piece_size
+    work_regs = [IntBuf.zero(work_piece_size) for _ in range(in_piece_count*2)]
 
     _add_product_into_pieces(input_pieces_buf1, input_pieces_buf2, work_regs, pos=True)
-    output += workspace1
-    output[piece_size:] += workspace2
-    output[piece_size*2:] += workspace3
+    for i in range(0, work_piece_size, piece_size):
+        output[i:] += IntBuf.concat(w[i:i+piece_size] for w in work_regs)
     _add_product_into_pieces(input_pieces_buf1, input_pieces_buf2, work_regs, pos=False)
 
 
@@ -45,6 +38,7 @@ def _add_product_into_pieces(input_pieces1: List[IntBuf],
                              input_pieces2: List[IntBuf],
                              output_pieces: List[IntBuf],
                              pos: bool):
+    assert len(output_pieces) == 2 * len(input_pieces1) == 2 * len(input_pieces2)
     if not input_pieces1:
         return
     if len(input_pieces1) == 1:
@@ -71,8 +65,8 @@ def _add_product_into_pieces(input_pieces1: List[IntBuf],
         input_pieces1[i] += input_pieces1[i + h]
         input_pieces2[i] += input_pieces2[i + h]
     _add_product_into_pieces(
-        input_pieces1=input_pieces1[0:h],
-        input_pieces2=input_pieces2[0:h],
+        input_pieces1=input_pieces1[:h],
+        input_pieces2=input_pieces2[:h],
         output_pieces=output_pieces[h:3*h],
         pos=pos)
     for i in range(h):
