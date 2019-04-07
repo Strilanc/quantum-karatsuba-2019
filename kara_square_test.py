@@ -2,7 +2,7 @@ import random
 from typing import Optional
 
 from int_buffer import IntBuf
-from kara_square import add_square_into_mut
+from kara_square import add_square_into
 
 
 def assert_case(*, n_in: int, v_in: int, n_out: Optional[int] = None, v_out: int = 0, **kwargs):
@@ -14,7 +14,7 @@ def assert_case(*, n_in: int, v_in: int, n_out: Optional[int] = None, v_out: int
     b_out = IntBuf.zero(n_out)
     b_in[:] = v_in
     b_out[:] = v_out
-    add_square_into_mut(b_in, b_out, **kwargs)
+    add_square_into(b_in, b_out, **kwargs)
 
     expected_out = (v_out + v_in**2) % 2**n_out
     if b_in != v_in or b_out != expected_out:

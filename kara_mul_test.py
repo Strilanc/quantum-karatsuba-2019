@@ -2,7 +2,7 @@ import random
 from typing import Optional
 
 from int_buffer import IntBuf
-from kara_mul import add_mul_into_mut
+from kara_mul import add_product_into
 
 
 def assert_case(*, n_in1: int, v_in1: int, n_in2: int, v_in2: int, n_out: Optional[int] = None, v_out: int = 0, **kwargs):
@@ -17,7 +17,7 @@ def assert_case(*, n_in1: int, v_in1: int, n_in2: int, v_in2: int, n_out: Option
     b_in1[:] = v_in1
     b_in2[:] = v_in2
     b_out[:] = v_out
-    add_mul_into_mut(b_in1, b_in2, b_out, **kwargs)
+    add_product_into(b_in1, b_in2, b_out, **kwargs)
 
     expected_out = (v_out + v_in1*v_in2) % 2**n_out
     if b_in1 != v_in1 or b_in2 != v_in2 or b_out != expected_out:
