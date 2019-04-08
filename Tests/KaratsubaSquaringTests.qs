@@ -6,7 +6,6 @@
     open Karatsuba;
 
     operation AssertSquareCase(n_in: Int, v_in: BigInt, piece_size: Int) : Unit {
-        Message($"{n_in}, {v_in}, {piece_size}");
         let n_out = n_in * 2;
         if (v_in < ToBigInt(0) or v_in >= ToBigInt(1) <<< n_in) {
             fail $"Bad test case: {n_in}, {v_in}, {piece_size}";
@@ -55,22 +54,31 @@
             8,
             BoolsToBigInt([true,true,true,true,true,true,true,true,false]),
             4);
-        AssertSquareCase(
-            207,
-            BoolsToBigInt([true,true,true,true,false,true,true,true,false,false,true,true,false,false,true,true,true,false,false,true,false,false,true,false,true,true,true,false,true,false,true,true,true,false,false,true,true,true,true,true,true,true,false,true,true,false,true,false,true,false,true,true,false,false,false,true,true,false,false,false,false,false,true,true,true,false,false,false,false,false,false,true,false,true,false,true,true,false,false,true,true,true,true,true,true,false,true,true,true,false,true,false,true,false,false,false,true,false,false,true,false,true,false,false,true,true,false,false,false,true,true,true,false,true,true,true,true,false,true,false,false,true,true,false,true,false,true,false,false,false,true,false,false,true,false,true,true,false,true,true,true,true,true,true,true,false,true,false,true,true,true,false,true,false,true,true,false,true,true,true,false,false,false,false,false,true,false,false,true,false,true,false,false,false,false,true,true,false,false,false,true,true,true,true,true,true,true,true,false,true,true,false,false,false,false,false,false,true,false,true,true,true,true,true,true,true,false]),
-            32);
-        AssertSquareCase(
-            128,
-            BoolsToBigInt([true,true,true,false,true,false,false,true,false,false,false,true,true,true,false,false,true,true,false,false,false,false,false,false,true,true,false,false,false,true,false,false,false,false,false,false,false,true,false,true,false,false,false,true,true,true,true,false,true,false,true,false,false,false,true,false,false,true,true,false,true,false,true,true,false,false,true,false,true,false,false,true,false,true,true,true,true,false,false,true,true,false,false,true,true,true,true,false,true,false,false,false,true,true,false,false,true,true,false,true,false,false,true,true,false,false,true,false,true,true,true,true,false,false,true,true,false,false,true,false,false,true,true,true,true,false,true,true,false]),
-            32);
-        AssertSquareCase(
-            66,
-            BoolsToBigInt([true,true,true,false,true,false,true,false,false,false,true,false,true,true,false,true,true,false,true,true,true,true,true,true,false,false,false,false,true,true,false,false,true,true,false,true,true,true,false,true,false,true,false,true,true,false,false,true,true,true,true,true,false,false,true,false,true,false,true,false,false,false,true,false,true,false]),
-            32);
+
+        // TODO: re-enable if performance improves.
+        // AssertSquareCase(
+        //     207,
+        //     BoolsToBigInt([true,true,true,true,false,true,true,true,false,false,true,true,false,false,true,true,true,false,false,true,false,false,true,false,true,true,true,false,true,false,true,true,true,false,false,true,true,true,true,true,true,true,false,true,true,false,true,false,true,false,true,true,false,false,false,true,true,false,false,false,false,false,true,true,true,false,false,false,false,false,false,true,false,true,false,true,true,false,false,true,true,true,true,true,true,false,true,true,true,false,true,false,true,false,false,false,true,false,false,true,false,true,false,false,true,true,false,false,false,true,true,true,false,true,true,true,true,false,true,false,false,true,true,false,true,false,true,false,false,false,true,false,false,true,false,true,true,false,true,true,true,true,true,true,true,false,true,false,true,true,true,false,true,false,true,true,false,true,true,true,false,false,false,false,false,true,false,false,true,false,true,false,false,false,false,true,true,false,false,false,true,true,true,true,true,true,true,true,false,true,true,false,false,false,false,false,false,true,false,true,true,true,true,true,true,true,false]),
+        //     32);
+        // AssertSquareCase(
+        //     128,
+        //     BoolsToBigInt([true,true,true,false,true,false,false,true,false,false,false,true,true,true,false,false,true,true,false,false,false,false,false,false,true,true,false,false,false,true,false,false,false,false,false,false,false,true,false,true,false,false,false,true,true,true,true,false,true,false,true,false,false,false,true,false,false,true,true,false,true,false,true,true,false,false,true,false,true,false,false,true,false,true,true,true,true,false,false,true,true,false,false,true,true,true,true,false,true,false,false,false,true,true,false,false,true,true,false,true,false,false,true,true,false,false,true,false,true,true,true,true,false,false,true,true,false,false,true,false,false,true,true,true,true,false,true,true,false]),
+        //     32);
+        // AssertSquareCase(
+        //     66,
+        //     BoolsToBigInt([true,true,true,false,true,false,true,false,false,false,true,false,true,true,false,true,true,false,true,true,true,true,true,true,false,false,false,false,true,true,false,false,true,true,false,true,true,true,false,true,false,true,false,true,true,false,false,true,true,true,true,true,false,false,true,false,true,false,true,false,false,false,true,false,true,false]),
+        //     32);
+    }
+
+    operation ToffoliSim_PlusEqualSquareUsingKaratsuba_PieceSizes_Test () : Unit {
+        for (n in 1..9) {
+            AssertSquareCase(32, ToBigInt(1620786985), n);
+        }
     }
 
     operation ToffoliSim_PlusEqualSquareUsingKaratsuba_Fuzz_Test() : Unit {
         // TODO: When ToffoliSim supports random numbers, generate on the fly instead of pre-baking.
+
         AssertSquareCase(
             6,
             BoolsToBigInt([true,false,true,true,false]),
@@ -81,12 +89,12 @@
             BoolsToBigInt([true,true,true,false,true,true,true,true,true,false,true,false,true,true,false,true,false,true,true,true,false,false,false,false,true,false,false,true,false,false,false,false,false,false,false]),
             32);
 
-        AssertSquareCase(
-            93,
-            BoolsToBigInt([true,true,false,true,false,true,false,true,true,true,false,true,false,true,false,true,true,false,true,true,false,true,true,true,false,false,true,true,true,true,true,false,false,true,false,false,true,true,true,false,false,true,false,true,false,false,true,false,false,true,true,true,true,false,false,true,true,false,false,true,true,true,false,true,true,true,false,false,false,true,false,false,true,false,true,false,false,false,false,true,true,false,true,false,false,true,false,false,false,true,true,true,false]),
-            32);
-
         // TODO: re-enable if performance improves.
+        // AssertSquareCase(
+        //     93,
+        //     BoolsToBigInt([true,true,false,true,false,true,false,true,true,true,false,true,false,true,false,true,true,false,true,true,false,true,true,true,false,false,true,true,true,true,true,false,false,true,false,false,true,true,true,false,false,true,false,true,false,false,true,false,false,true,true,true,true,false,false,true,true,false,false,true,true,true,false,true,true,true,false,false,false,true,false,false,true,false,true,false,false,false,false,true,true,false,true,false,false,true,false,false,false,true,true,true,false]),
+        //     32);
+
         // AssertSquareCase(
         //     116,
         //     BoolsToBigInt([true,false,true,true,true,true,true,true,true,false,false,false,true,true,false,true,false,false,false,true,false,true,true,true,false,false,true,false,true,true,true,false,false,false,false,true,false,false,true,false,false,true,false,true,false,false,false,false,true,true,true,true,false,true,true,true,false,true,true,false,true,false,false,false,false,false,true,false,true,true,true,false,true,true,true,false,true,true,false,false,true,true,true,true,true,true,false,true,true,false,false,false,true,false,true,true,true,false,true,false,true,true,true,false,true,true,true,true,true,false,false,false,true,true,true,false]),

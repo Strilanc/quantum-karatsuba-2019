@@ -21,95 +21,45 @@
             factor1: LittleEndian,
             factor2: LittleEndian) : Unit {
         body (...) {
-            let n = Max([Length(factor1!), Length(factor2!)]);
-            let piece_size = Max([32, 2*CeilLg2(n)]);
-            let piece_count = (n + piece_size  - 1) / piece_size;
-            let m = piece_count * piece_size;
-
-            mutable ins = new LittleEndian[piece_count];
-
-            using (workspace = Qubit[8 * m]) {
-                // Prepare padded input pieces.
-                let i0 = workspace[0..m-1];
-                let i1 = workspace[m..2*m-1];
-                let input_pieces_1 = build_input_pieces(i0, factor1, piece_size, piece_count);
-                let input_pieces_2 = build_input_pieces(i1, factor2, piece_size, piece_count);
-
-                // Prepare padded output pieces to temporarily hold the square.
-                let o0 = workspace[2*m..4*m-1];
-                let o1 = workspace[4*m..6*m-1];
-                let o2 = workspace[6*m..8*m-1];
-                let output_pieces = build_output_pieces(o0, o1, o2, piece_size, piece_count);
-
-                // Initialize temporary registers such that o0 + (o1<<h) + (o2<<2h) = input**2.
-                _PlusEqualProductUsingKaratsubaOnPieces(
-                    output_pieces, input_pieces_1, input_pieces_2);
-                Message("COMPUTED out in1 in2");
-                peekInts(output_pieces);
-                peekInts(input_pieces_1);
-                peekInts(input_pieces_2);
-                // Use temporary registers to offset lvalue.
-                PlusEqual(lvalue, LittleEndian(o0));
-                PlusEqual(LittleEndian(lvalue![piece_size..Length(lvalue!)-1]), LittleEndian(o1));
-                PlusEqual(LittleEndian(lvalue![2*piece_size..Length(lvalue!)-1]), LittleEndian(o2));
-                // Uncompute temporary registers.
-                Message("UNCOMPUTING");
-                Adjoint _PlusEqualProductUsingKaratsubaOnPieces(
-                    output_pieces, input_pieces_1, input_pieces_2);
-            }
+            let piece_size = Max([32, 2*CeilLg2(Max([Length(factor1!), Length(factor2!)]))]);
+            _PlusEqualProductUsingKaratsuba_Helper(lvalue, factor1, factor2, piece_size);
         }
         adjoint auto;
     }
 
-    function build_input_pieces(
-            i0: Qubit[],
-            offset: LittleEndian,
-            piece_size: Int,
-            piece_count: Int) : LittleEndian[] {
-        mutable input_pieces = new LittleEndian[piece_count];
-        for (k in 0..piece_count-1) {
-            let low = k*piece_size;
-            let high = Min([low+piece_size-1, Length(offset!)-1]);
-            set input_pieces[k] = LittleEndian(
-                offset![low..high] +  // Raw input bits.
-                i0[low..high]);       // Padding so that input pieces can be added together.
-        }
-        return input_pieces;
-    }
-
-    function build_output_pieces(
-            o0: Qubit[],
-            o1: Qubit[],
-            o2: Qubit[],
-            piece_size: Int,
-            piece_count: Int) : LittleEndian[] {
-        mutable output_pieces = new LittleEndian[piece_count*2];
-        for (k in 0..piece_count*2-1) {
-            let low = k*piece_size;
-            let high = low+piece_size-1;
-            set output_pieces[k] = LittleEndian(
-                o0[low..high] +  // Basic room for output.
-                o1[low..high] +  // Padding so each piece can hold a squared piece.
-                o2[low..high]);  // Padding so that output pieces can be added together.
-        }
-        return output_pieces;
-    }
-
-    operation peekInts(vs: LittleEndian[]) : Unit {
+    operation _PlusEqualProductUsingKaratsuba_Helper(
+            lvalue: LittleEndian,
+            factor1: LittleEndian,
+            factor2: LittleEndian,
+            piece_size: Int) : Unit {
         body (...) {
-            mutable us = new BigInt[Length(vs)];
-            for (i in 0..Length(vs)-1) {
-                set us[i] = MeasureSignedBigInt(vs[i]);
+            let piece_count = CeilPowerOf2(CeilMultiple(Max([Length(factor1!), Length(factor2!)]), piece_size) / piece_size);
+            let in_buf_piece_size = piece_size + CeilLg2(piece_count);
+            let work_buf_piece_size = CeilMultiple(piece_size*2 + CeilLg2(piece_count)*4, piece_size);
+
+            // Create input pieces with enough padding to add them together.
+            using (in_bufs_backing1 = Qubit[in_buf_piece_size * piece_count - Length(factor1!)]) {
+                using (in_bufs_backing2 = Qubit[in_buf_piece_size * piece_count - Length(factor2!)]) {
+                    let in_bufs1 = SplitPadBuffer(factor1!, in_bufs_backing1, piece_size, in_buf_piece_size, piece_count);
+                    let in_bufs2 = SplitPadBuffer(factor2!, in_bufs_backing2, piece_size, in_buf_piece_size, piece_count);
+
+                    // Create workspace pieces with enough padding to hold multiplied summed input pieces, and to add them together.
+                    using (work_bufs_backing = Qubit[work_buf_piece_size * piece_count * 2]) {
+                        let work_bufs = SplitBuffer(work_bufs_backing, work_buf_piece_size);
+
+                        // Add into workspaces, merge into output, then uncompute workspace.
+                        _PlusEqualProductUsingKaratsubaOnPieces(work_bufs, in_bufs1, in_bufs2);
+                        for (i in 0..piece_size..work_buf_piece_size-1) {
+                            let target = LittleEndian(lvalue![i..Length(lvalue!)-1]);
+                            let shift = MergeBufferRanges(work_bufs, i, piece_size);
+                            PlusEqual(target, shift);
+                        }
+                        Adjoint _PlusEqualProductUsingKaratsubaOnPieces(work_bufs, in_bufs1, in_bufs2);
+                    }
+                }
             }
-            Message($"peekInts {us}");
         }
-        adjoint (...) {
-            mutable us = new BigInt[Length(vs)];
-            for (i in 0..Length(vs)-1) {
-                set us[i] = MeasureSignedBigInt(vs[i]);
-            }
-            Message($"adjoint peekInts {us}");
-        }
+        adjoint auto;
     }
 
     operation _PlusEqualProductUsingKaratsubaOnPieces (
@@ -128,7 +78,7 @@
             } else {
                 let h = n >>> 1;
 
-                // Input is logically split into two halves (a, b) such that a + 2**h * b equals the input.
+                // Input 1 is logically split into two halves (a, b) such that a + 2**h * b equals the input.
                 // Input 2 is logically split into two halves (x, y) such that x + 2**h * y equals the input.
 
                 //-----------------------------------
@@ -140,17 +90,17 @@
                 for (i in h..Length(output_pieces) - 1) {
                     PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
-                // Recursive multiplied addition for a.
+                // Recursive multiply-add for a*x.
                 _PlusEqualProductUsingKaratsubaOnPieces(
                     output_pieces[0..2*h-1],
                     input_pieces_1[0..h-1],
                     input_pieces_2[0..h-1]);
-                // Recursive multiplied addition for b.
+                // Recursive multiply-subtract for b*y.
                 Adjoint _PlusEqualProductUsingKaratsubaOnPieces(
                     output_pieces[h..3*h-1],
                     input_pieces_1[h..2*h-1],
                     input_pieces_2[h..2*h-1]);
-                // Multiply output by 1-2**h, completing the scaling of the previous two multiplied additions.
+                // Multiply output by 1-2**h, completing the scaling of the previous two multiply-adds.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
@@ -164,7 +114,7 @@
                     PlusEqual(input_pieces_1[i], input_pieces_1[i + h]);
                     PlusEqual(input_pieces_2[i], input_pieces_2[i + h]);
                 }
-                // Recursive multiplied addition for (a+b)*(x+y).
+                // Recursive multiply-add for (a+b)*(x+y).
                 _PlusEqualProductUsingKaratsubaOnPieces(
                     output_pieces[h..3*h-1],
                     input_pieces_1[0..h-1],

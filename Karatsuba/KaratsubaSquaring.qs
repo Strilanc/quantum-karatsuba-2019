@@ -24,30 +24,25 @@
 
     operation _PlusEqualSquareUsingKaratsuba_Helper(lvalue: LittleEndian, offset: LittleEndian, piece_size: Int) : Unit {
         body (...) {
-            let piece_count = CeilPowerOf2(CeilMultiple(Length(offset!), piece_size));
+            let piece_count = CeilPowerOf2(CeilMultiple(Length(offset!), piece_size) / piece_size);
             let in_buf_piece_size = piece_size + CeilLg2(piece_count);
-            let work_buf_piece_size = piece_size*2 + CeilLg2(piece_count)*4;
+            let work_buf_piece_size = CeilMultiple(piece_size*2 + CeilLg2(piece_count)*4, piece_size);
 
+            // Create input pieces with enough padding to add them together.
             using (in_bufs_backing = Qubit[in_buf_piece_size * piece_count - Length(offset!)]) {
                 let in_bufs = SplitPadBuffer(offset!, in_bufs_backing, piece_size, in_buf_piece_size, piece_count);
 
+                // Create workspace pieces with enough padding to hold squared summed input pieces, and to add them together.
                 using (work_bufs_backing = Qubit[work_buf_piece_size * piece_count * 2]) {
                     let work_bufs = SplitBuffer(work_bufs_backing, work_buf_piece_size);
 
                     // Add into workspaces, merge into output, then uncompute workspace.
-                    Message("COMPUTE");
                     _PlusEqualSquareUsingKaratsubaOnPieces(work_bufs, in_bufs);
-                    Message("MERGE");
-                    Message("in_bufs");
-                    peekInts(in_bufs);
-                    Message("work_bufs");
-                    peekInts(work_bufs);
                     for (i in 0..piece_size..work_buf_piece_size-1) {
                         let target = LittleEndian(lvalue![i..Length(lvalue!)-1]);
                         let shift = MergeBufferRanges(work_bufs, i, piece_size);
                         PlusEqual(target, shift);
                     }
-                    Message("UNCOMPUTE");
                     Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(work_bufs, in_bufs);
                 }
             }
@@ -59,15 +54,9 @@
         body (...) {
             let n = Length(input_pieces);
             if (n <= 1) {
-                Message("LEAF");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
                 if (n == 1) {
                     PlusEqualSquareUsingSchoolbook(output_pieces[0], input_pieces[0]);
                 }
-                Message("AFTER LEAF");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
             } else {
                 let h = n >>> 1;
 
@@ -82,30 +71,18 @@
                 for (i in h..Length(output_pieces) - 1) {
                     PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
-                Message("AFTER INVMUL");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
                 // Recursive squared addition for a.
                 _PlusEqualSquareUsingKaratsubaOnPieces(
                     output_pieces[0..2*h-1],
                     input_pieces[0..h-1]);
-                Message("AFTER +=a**2");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
                 // Recursive squared addition for b.
                 Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(
                     output_pieces[h..3*h-1],
                     input_pieces[h..2*h-1]);
-                Message("AFTER -=b**2");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
                 // Multiply output by 1-2**h, completing the scaling of the previous two squared additions.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
-                Message("AFTER MUL");
-                peekInts(input_pieces);
-                peekInts(output_pieces);
 
                 //-------------------------------
                 // Perform

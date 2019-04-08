@@ -73,4 +73,21 @@
         }
         return result;
     }
+
+    operation peekInts(vs: LittleEndian[]) : Unit {
+        body (...) {
+            mutable us = new BigInt[Length(vs)];
+            for (i in 0..Length(vs)-1) {
+                set us[i] = MeasureSignedBigInt(vs[i]);
+            }
+            Message($"peekInts {us}");
+        }
+        adjoint (...) {
+            mutable us = new BigInt[Length(vs)];
+            for (i in 0..Length(vs)-1) {
+                set us[i] = MeasureSignedBigInt(vs[i]);
+            }
+            Message($"adjoint peekInts {us}");
+        }
+    }
 }
