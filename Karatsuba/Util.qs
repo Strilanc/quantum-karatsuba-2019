@@ -74,6 +74,20 @@
         return result;
     }
 
+    operation ForceMeasureResetBigInt(qs: LittleEndian, expectedValue: BigInt) : BigInt {
+        mutable result = ToBigInt(0);
+        mutable i = 0;
+        for (q in qs!) {
+            AssertProb([PauliZ], [q], ((expectedValue >>> i) &&& ToBigInt(1)) != ToBigInt(0) ? One | Zero, 1.0, "", 0.01);
+            if (Measure([PauliZ], [q]) == One) {
+                set result = result + (ToBigInt(1) <<< i);
+                X(q);
+            }
+            set i = i + 1;
+        }
+        return result;
+    }
+
     operation peekInts(vs: LittleEndian[]) : Unit {
         body (...) {
             mutable us = new BigInt[Length(vs)];
