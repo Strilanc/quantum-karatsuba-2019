@@ -13,20 +13,18 @@ def add_square_into(
 
     Uses reversible Karatsuba squaring.
     """
-
-    n = ceil_power_of_2(len(input))
-    input = input.padded(n - len(input))
+    in_piece_count = ceil_power_of_2(int(math.ceil(len(input) / piece_size)))
+    input = input.padded(in_piece_count*piece_size - len(input))
 
     # Prepare padded input chunks.
     input_pieces_buf = []
-    in_piece_count = int(math.ceil(n / piece_size))
     for j in range(in_piece_count):
         k = j * piece_size
-        folds = popcnt((n - 1) ^ j)
+        folds = popcnt((in_piece_count - 1) ^ j)
         input_pieces_buf.append(input[k:k+piece_size].padded(folds))
 
     # Prepare padded workspace chunks.
-    work_piece_size = piece_size * 2 + popcnt(n-1) * 4
+    work_piece_size = piece_size * 2 + popcnt(in_piece_count-1) * 4
     runs = int(math.ceil(work_piece_size / piece_size))
     work_piece_size = runs * piece_size
     work_regs = [IntBuf.zero(work_piece_size) for _ in range(in_piece_count*2)]

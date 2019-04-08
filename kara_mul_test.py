@@ -6,6 +6,20 @@ from kara_mul import add_product_into
 
 
 def assert_case(*, n_in1: int, v_in1: int, n_in2: int, v_in2: int, n_out: Optional[int] = None, v_out: int = 0, **kwargs):
+    # Generate Q# case.
+    # print("""
+    #     AssertProductCase(
+    #         {},
+    #         {},
+    #         BoolsToBigInt([{},false]),
+    #         BoolsToBigInt([{},false]),
+    #         {});""".format(
+    #     n_in1,
+    #     n_in2,
+    #     ','.join('true' if e == '1' else 'false' for e in bin(v_in1)[2:]),
+    #     ','.join('true' if e == '1' else 'false' for e in bin(v_in2)[2:]),
+    #     kwargs.get('piece_size', 32)))
+
     if n_out is None:
         n_out = max(n_in1, n_in2) * 2
     assert 0 <= v_in1 < 1 << n_in1
@@ -68,6 +82,11 @@ def test_small_cases():
             for v1 in range(1 << n1):
                 for v2 in range(1 << n2):
                     assert_case(n_in1=n1, n_in2=n2, v_in1=v1, v_in2=v2, piece_size=1)
+
+
+def test_piece_sizes():
+    for n in range(1, 10):
+        assert_case(n_in1=32, n_in2=32, v_in1=1620786985, v_in2=623629819, piece_size=n)
 
 
 def test_known_historical_failures():

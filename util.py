@@ -25,6 +25,10 @@ def power_of_two_ness(v: int) -> int:
     return v ^ (v & (v - 1))
 
 
+def ceil_multiple(n: int, m: int) -> int:
+    return ((n + m - 1) // m) * m
+
+
 def ceil_lg2(n: int):
     return int(math.ceil(math.log2(n)))
 

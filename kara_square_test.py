@@ -6,6 +6,16 @@ from kara_square import add_square_into
 
 
 def assert_case(*, n_in: int, v_in: int, n_out: Optional[int] = None, v_out: int = 0, **kwargs):
+    # Generate Q# case.
+    # print("""
+    #     AssertSquareCase(
+    #         {},
+    #         BoolsToBigInt([{},false]),
+    #         {});""".format(
+    #     n_in,
+    #     ','.join('true' if e == '1' else 'false' for e in bin(v_in)[2:]),
+    #     kwargs.get('piece_size', 32)))
+
     if n_out is None:
         n_out = n_in * 2
     assert 0 <= v_in < 1 << n_in
@@ -49,6 +59,11 @@ def test_individual_bits():
     for n_in in range(10):
         for b_in in range(n_in):
             assert_case(n_in=n_in, n_out=20, v_in=1<<b_in, piece_size=1)
+
+
+def test_piece_sizes():
+    for p in range(1, 10):
+        assert_case(n_in=32, v_in=1620786985, piece_size=p)
 
 
 def test_small_cases():

@@ -14,23 +14,21 @@ def add_product_into(
 
     Uses reversible Karatsuba multiplication.
     """
-
-    n = ceil_power_of_2(max(len(input1), len(input2)))
-    input1 = input1.padded(n - len(input1))
-    input2 = input2.padded(n - len(input2))
+    in_piece_count = ceil_power_of_2(int(math.ceil(max(len(input1), len(input2)) / piece_size)))
+    input1 = input1.padded(in_piece_count*piece_size - len(input1))
+    input2 = input2.padded(in_piece_count*piece_size - len(input2))
 
     # Prepare padded input chunks.
     input_pieces_buf1 = []
     input_pieces_buf2 = []
-    in_piece_count = int(math.ceil(n / piece_size))
     for j in range(in_piece_count):
         k = j * piece_size
-        folds = popcnt((n - 1) ^ j)
+        folds = popcnt((in_piece_count - 1) ^ j)
         input_pieces_buf1.append(input1[k:k+piece_size].padded(folds))
         input_pieces_buf2.append(input2[k:k+piece_size].padded(folds))
 
     # Prepare padded workspace chunks.
-    work_piece_size = piece_size * 2 + popcnt(n-1) * 4
+    work_piece_size = piece_size * 2 + popcnt(in_piece_count-1) * 4
     work_piece_size = int(math.ceil(work_piece_size / piece_size)) * piece_size
     work_regs = [IntBuf.zero(work_piece_size) for _ in range(in_piece_count*2)]
 
