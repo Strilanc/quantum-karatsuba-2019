@@ -60,14 +60,14 @@
             } else {
                 let h = n >>> 1;
 
-                // Input is logically split into two halves (a, b) such that a + 2**h * b equals the input.
+                // Input is logically split into two halves (a, b) such that a + 2**(wh) * b equals the input.
 
                 //-----------------------------------
                 // Perform
-                //     out += a**2 * (1-2**h)
-                //     out -= b**2 * 2**h * (1-2**h)
+                //     out += a**2 * (1-2**(wh))
+                //     out -= b**2 * 2**(wh) * (1-2**(wh))
                 //-----------------------------------
-                // Temporarily inverse-multiply the output by 1-2**h, so that the following two squared additions are scaled by 1-2**h.
+                // Temporarily inverse-multiply the output by 1-2**(wh), so that the following two squared additions are scaled by 1-2**(wh).
                 for (i in h..Length(output_pieces) - 1) {
                     PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
@@ -79,14 +79,14 @@
                 Adjoint _PlusEqualSquareUsingKaratsubaOnPieces(
                     output_pieces[h..3*h-1],
                     input_pieces[h..2*h-1]);
-                // Multiply output by 1-2**h, completing the scaling of the previous two squared additions.
+                // Multiply output by 1-2**(wh), completing the scaling of the previous two squared additions.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
 
                 //-------------------------------
                 // Perform
-                //     out += (a+b)**2 * 2**h
+                //     out += (a+b)**2 * 2**(wh)
                 //-------------------------------
                 // Temporarily store a+b over a.
                 for (i in 0..h-1) {

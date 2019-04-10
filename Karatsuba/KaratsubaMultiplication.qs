@@ -78,15 +78,15 @@
             } else {
                 let h = n >>> 1;
 
-                // Input 1 is logically split into two halves (a, b) such that a + 2**h * b equals the input.
-                // Input 2 is logically split into two halves (x, y) such that x + 2**h * y equals the input.
+                // Input 1 is logically split into two halves (a, b) such that a + 2**(wh) * b equals the input.
+                // Input 2 is logically split into two halves (x, y) such that x + 2**(wh) * y equals the input.
 
                 //-----------------------------------
                 // Perform
-                //     out += a*x * (1-2**h)
-                //     out -= b*y * 2**h * (1-2**h)
+                //     out += a*x * (1-2**(wh))
+                //     out -= b*y * 2**(wh) * (1-2**(wh))
                 //-----------------------------------
-                // Temporarily inverse-multiply the output by 1-2**h, so that the following two multiplied additions are scaled by 1-2**h.
+                // Temporarily inverse-multiply the output by 1-2**(wh), so that the following two multiplied additions are scaled by 1-2**(wh).
                 for (i in h..Length(output_pieces) - 1) {
                     PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
@@ -100,14 +100,14 @@
                     output_pieces[h..3*h-1],
                     input_pieces_1[h..2*h-1],
                     input_pieces_2[h..2*h-1]);
-                // Multiply output by 1-2**h, completing the scaling of the previous two multiply-adds.
+                // Multiply output by 1-2**(wh), completing the scaling of the previous two multiply-adds.
                 for (i in Length(output_pieces) - 1..-1..h) {
                     Adjoint PlusEqual(output_pieces[i], output_pieces[i - h]);
                 }
 
                 //-------------------------------
                 // Perform
-                //     out += (a+b)*(x+y) * 2**h
+                //     out += (a+b)*(x+y) * 2**(wh)
                 //-------------------------------
                 // Temporarily store a+b over a and x+y over x.
                 for (i in 0..h-1) {
