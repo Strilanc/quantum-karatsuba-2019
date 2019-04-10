@@ -64,17 +64,17 @@ def _add_product_into_pieces(input_pieces1: List[IntBuf],
     h = len(input_pieces1) >> 1
 
     # Input1 is logically split into two halves (a, b) such that
-    #   a + 2**h * b equals the input.
+    #   a + 2**(wh) * b equals the input.
     # Input2 is logically split into two halves (x, y) such that
-    #   x + 2**h * y equals the input.
+    #   x + 2**(wh) * y equals the input.
 
     # -----------------------------------
     # Perform
-    #     out += a*x * (1-2**h)
-    #     out -= b*y * 2**h * (1-2**h)
+    #     out += a*x * (1-2**(wh))
+    #     out -= b*y * 2**(wh) * (1-2**(wh))
     # -----------------------------------
-    # Temporarily inverse-multiply the output by 1-2**h, so that the following
-    # two multiply-adds are scaled by 1-2**h.
+    # Temporarily inverse-multiply the output by 1-2**(wh), so that the following
+    # two multiply-adds are scaled by 1-2**(wh).
     for i in range(h, len(output_pieces)):
         output_pieces[i] += output_pieces[i - h]
     # Recursive multiply-add for a*x.
@@ -89,14 +89,14 @@ def _add_product_into_pieces(input_pieces1: List[IntBuf],
         input_pieces2=input_pieces2[h:2*h],
         output_pieces=output_pieces[h:3*h],
         sign=-sign)
-    # Multiply output by 1-2**h, completing the scaling of the previous
+    # Multiply output by 1-2**(wh), completing the scaling of the previous
     # two multiply-adds.
     for i in range(h, len(output_pieces))[::-1]:
         output_pieces[i] -= output_pieces[i - h]
 
     # -------------------------------
     # Perform
-    #     out += (a+b)*(x+y) * 2**h
+    #     out += (a+b)*(x+y) * 2**(wh)
     # -------------------------------
     # Temporarily store a+b over a and x+y over x.
     for i in range(h):

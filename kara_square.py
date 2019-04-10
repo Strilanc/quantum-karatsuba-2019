@@ -54,15 +54,15 @@ def _add_square_into_pieces(input_pieces: List[IntBuf],
     h = len(input_pieces) >> 1
 
     # Input is logically split into two halves (a, b) such that
-    #   a + 2**h * b equals the input.
+    #   a + 2**(wh) * b equals the input.
 
     # -----------------------------------
     # Perform
-    #     out += a**2 * (1-2**h)
-    #     out -= b**2 * 2**h * (1-2**h)
+    #     out += a**2 * (1-2**(wh))
+    #     out -= b**2 * 2**(wh) * (1-2**(wh))
     # -----------------------------------
-    # Temporarily inverse-multiply the output by 1-2**h, so that the following
-    # two squared additions are scaled by 1-2**h.
+    # Temporarily inverse-multiply the output by 1-2**(wh), so that the following
+    # two squared additions are scaled by 1-2**(wh).
     for i in range(h, len(output_pieces)):
         output_pieces[i] += output_pieces[i - h]
     # Recursive squared addition for a.
@@ -75,14 +75,14 @@ def _add_square_into_pieces(input_pieces: List[IntBuf],
         input_pieces=input_pieces[h:2*h],
         output_pieces=output_pieces[h:3*h],
         sign=-sign)
-    # Multiply output by 1-2**h, completing the scaling of the previous
+    # Multiply output by 1-2**(wh), completing the scaling of the previous
     # two squared additions.
     for i in range(h, len(output_pieces))[::-1]:
         output_pieces[i] -= output_pieces[i - h]
 
     # -------------------------------
     # Perform
-    #     out += (a+b)**2 * 2**h
+    #     out += (a+b)**2 * 2**(wh)
     # -------------------------------
     # Temporarily store a+b over a.
     for i in range(h):
