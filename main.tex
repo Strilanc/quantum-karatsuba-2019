@@ -123,14 +123,13 @@ This optimization, which is analogous to classical tail-call optimization, shoul
 A quantum computer can evaluate any circuit that a classical computer can evaluate.
 Given this fact, it is somewhat surprising that porting classical algorithms to work on a quantum computer is not a trivial task.
 The issue is that classical algorithms and circuits perform irreversible operations (e.g. discarding initialized memory, looping until a condition is satisfied).
-In a quantum context, these irreversible operations cause decoherence.
-They can't be used as subroutines in larger quantum algorithms, such as Grover search, because those algorithms require coherent operation.
-Thus the real challenge of porting a classical algorithm to a quantum computer is {\em fixing all the implicit decoherence errors} that were present in the classical algorithm, and in particular doing so {\em without incurring huge overheads}.
+This prevents their use as subroutines in larger quantum algorithms, such as Grover search, because irreversible operations cause decoherence but these larger algorithms require that coherence be maintained.
+Thus the real challenge of porting a classical algorithm to a quantum computer is {\em removing all the implicit decoherence} present in the classical implementation, and in particular doing so {\em without incurring huge overheads}.
 
-Karatsuba multiplication \cite{karatsuba1962multiplication}, the first multiplication algorithm with a sub-quadratic number of operations to be discovered, is an example of an algorithm where it is non-trivial to remove the decoherence errors without sacrificing performance.
+Karatsuba multiplication \cite{karatsuba1962multiplication}, the first multiplication algorithm with a sub-quadratic number of operations to be discovered, is an example of an algorithm where it is non-trivial to remove decoherence without sacrificing performance.
 Karatsuba multiplication works by splitting its inputs $u, v$ into two halves $u=a+2^{h} b, v=x+2^{h} y$, recursively multiplying $ax$, $by$, and $(a+b)(x+y)$, then using those results to assemble the complete answer.
 We demonstrate the basic idea in \fig{classical_code}, which has example python code for squaring a number using Karatsuba multiplication.
-Note that this code has implicit decoherence errors.
+Note that this code has implicit decoherence.
 In particular, it is allowing variables to go out of scope without being uncomputed.
 
 \begin{figure}
@@ -159,30 +158,30 @@ def classical_karatsuba_square(v: int) -> int:
 \caption{
 \label{fig:classical_code}
    Example python implementation of Karatsuba squaring.
-   Works fine in a classical context, but contains implicit decoherence errors (e.g. the results of the recursive calls are discarded instead of uncomputed) that make it unsuitable in a quantum context.
+   Works fine in a classical context, but contains implicit decoherence (e.g. the results of the recursive calls are discarded instead of uncomputed) that make it unsuitable in a quantum context.
 }
 \end{figure}
 
-One way to fix the implicit decoherence errors in the code is to uncompute the recursive calls by running them in reverse.
-This does remove the decoherence errors, but it increases the number of recursive calls from 3 to 6.
+One way to remove the implicit decoherence in the code is to uncompute the recursive calls by running them in reverse.
+This does remove the decoherence, but it increases the number of recursive calls from 3 to 6.
 The recurrence relation that defines the cost of the code is $T(n) = O(n) + r \cdot T(n/2)$ where $T(1) = O(1)$ and $r$ is the number of recursive calls.
 When $r>2$, the solution to this recurrence relation is $T(n) = O(n^{\lg r})$ where $\lg$ is the base-2 logarithm.
 Increasing $r$ from 3 to 6 increases the total number of operations from sub-quadratic $O(n^{\lg 3})$ to cubic $O(n^3)$, which is clearly unacceptable.
 Even schoolbook multiplication achieves $O(n^2)$ operations.
 
-Another way to fix the decoherence is to store all intermediate values that would have been discarded during execution of the algorithm, and then uncompute those intermediate values in reverse order at the end of the algorithm.
+Another way to remove the decoherence is to store all intermediate values that would have been discarded during execution of the algorithm, and then uncompute those intermediate values in reverse order at the end of the algorithm \cite{bennett1973logical}.
 This at most doubles the number of operations, but has the downside of increasing the space usage from $O(n)$ to the number of operations $O(n^{\lg 3})$.
 It is possible to improve over this naive space bound by carefully analyzing the dependencies between values as a pebble game \cite{bennett1989pebble}.
 Parent et al. do this in \cite{parent2017karatsuba}, and improve the space complexity to $O(n^{1.427})$ while preserving the time complexity.
 It is unclear if it is possible to get all the way down to linear space cost using this approach.
 
-In this paper, we present an alternative method for fixing the decoherence errors in the Karatsuba multiplication algorithm.
+In this paper, we present an alternative method for removing decoherence from Karatsuba multiplication.
 Specifically, we orchestrate the execution of the algorithm such that intermediate values can simply be added directly into sections of the output register.
 This avoids the need to store and uncompute the intermediate values, achieving $O(n)$ space usage while preserving the $O(n^{\lg 3})$ operation count, matching the asymptotic behavior of the classical implementation.
 
 The paper is arranged as follows.
 In \sec{introduction} we motivate the difficulty of the problem and discuss some background.
-In \sec{methods} we describe how to rewrite Karatsuba multiplication into a series of inline additions.
+In \sec{methods} we describe how to rewrite Karatsuba multiplication into a series of recursive inline additions.
 In \sec{results} we analyze the cost of our construction, reference our python and Q\# implementations, and present gate counts from Q\#'s tracing simulator.
 Finally, \sec{conclusion} makes some closing observations.
 
@@ -234,10 +233,10 @@ t &\pluseq (a+b)(x + y) \cdot 2^{wh}
 \end{aligned}$$
 
 Our goal now is to rewrite the recursive calls into a form where they are not scaled before being added into $t$.
+We need to move the factors of $2^{wh}$ and $1-2^{wh}$ into separate instructions, away from the recursive terms $ax$, $by$, and $(a+b)(x+y)$.
 This will allow us to perform an optimization analogous to tail-call optimization, where outputs go directly into the result instead of through a series of intermediates.
-Basically we need to move the factors of $2^{wh}$ and $1-2^{wh}$ into separate instructions, away from the recursive terms $ax$, $by$, and $(a+b)(x+y)$.
 
-The multiplications by $2^{wh}$ are easily dealt with, because they correspond to shifts.
+The multiplications by $2^{wh}$ are easily dealt with, because they correspond to word-aligned shifts.
 We simply add into $t$ starting at word position $h$ instead of word position 0.
 We indicate this by replacing $t$ with $t[h:]$ on the left hand side:
 
@@ -339,7 +338,7 @@ a &\minuseq b
 x &\minuseq y
 \end{aligned}\end{equation}
 
-This final series of instructions is the heart of our algorithm for Karatsuba multiplication without decoherence errors.
+This final series of instructions is the heart of our algorithm for Karatsuba multiplication without decoherence.
 We iteratively decompose multiplications into this set of instructions until we hit the base case $m=1$, resulting in a long series of inline additions (and subtractions) and base case multiplications.
 If the base case multiplication also decomposes into additions, then the whole algorithm is just a series of inline additions.
 
@@ -352,10 +351,10 @@ During the initial preparation to perform a multiplication, we allocate a tempor
 (To be clear, we do not do this during the recursive steps!
 We only do it at the top-most level of the algorithm.)
 We add the product $uv$ into the temporary register, with padding, using the recursive procedure we have been describing throughout the rest of this section.
-We then iterate over the padding and non-padding bits of the temporary register, adding them into the true target at the appropriate offsets.
+We then iterate over groups of padding and non-padding bits in the temporary register, adding them into the true target at the appropriate offsets.
 We then uncompute the temporary register.
 
-Computing and uncomputing a temporary register doubles the cost of the multiplication, but it removes all remaining decoherence errors and completes our construction.
+Computing and uncomputing a temporary register doubles the cost of the multiplication, but it removes all remaining decoherence and completes our construction.
 
 
 \section{Analysis}
@@ -395,7 +394,7 @@ T(m) &= T\left(\frac{n}{\lg n}\right)
     \end{aligned}
 \end{equation}
 
-From this analysis, we can see that it would not be asymptotically acceptable to use schoolbook multiplication in our base case because the resulting complexity would scale like $O(n^{\lg 3} \lg^{0.42})$ instead of $O(n^{\lg 3})$.
+From this analysis, we can see that it would not be asymptotically acceptable to use schoolbook multiplication in our base case because the resulting complexity would scale like $O(n^{\lg 3} \lg^{0.42} n)$ instead of $O(n^{\lg 3})$.
 Fortunately, because our base case has size $w + \lg m = O(\lg n)$, we can simply use a space-inefficient form of Karatsuba multiplication, e.g. the construction from \cite{parent2017karatsuba}, as our base case.
 The additive space cost we pay for this is polylogarithmic in $n$; asymptotically negligible.
 This reduces the operation count to $O(n^{\lg 3})$ as desired.
@@ -406,12 +405,22 @@ The padded output has size $2m \cdot (2w + 3 \lg m) = \frac{2n}{\lg n} (2 \lg n 
 All other sources of memory usage, such as the base case multiplications, are negligible.
 Thus the total space usage is $O(n)$ as desired.
 
+Achieving a good asymptotic depth requires some tweaks to the construction.
+The problem is that the recursive calls we are performing require exclusive access to overlapping ranges of the output register, which prevents the recursive cases from being run in parallel, which serializes the execution of the base cases.
+We can work around this issue by making the base case larger.
+If we set the word size $w^\prime$ to $n^{1 / \lg 3}$ instead of $\lg n$, then in the base case multiplication we can use the naive Karatsuba construction where all intermediate values are stored until the (base case) multiplication has completed (at which point the intermediate values are uncomputed in reverse order) \cite{bennett1973logical}.
+We can afford to do this because the word size $w^\prime$ is small enough that the space used while executing a base case will be $O({w^\prime}^{\lg 3}) = O(n)$.
+By using log-depth adders and parallel execution of smaller cases, the base case can be completed in $D(w^\prime) = O(\lg w^\prime) + D(w^\prime/2) = O(\lg^2 w^\prime) = O(\lg^2 n)$ depth while maintaining the desired $O({w^\prime}^{\lg 3}) = O(n)$ space usage (because the space usage cannot exceed the operation count).
+There will be $3^{\lg n - \lg w^\prime} = O(n^{\lg 3 - 1})$ of these base cases, executed serially.
+The depth cost of executing these base cases dominates the depth cost of the non-recursive additions used to prepare them (as long as those additions use log-depth adders).
+Thus the total depth of this increased-word-size massively-parallel-base-case construction is $O(n^{\lg 3 - 1} \lg^2 n)$ and since the space usage is still linear the spacetime volume is $O(n^{\lg 3} \lg^2 n)$.
+This is an improvement over the $O(n^{1 + \lg 3})$ volumes achieved in \cite{portugal2006karatsuba} and \cite{parent2017karatsuba}.
+
 In order to double-check our algorithm and our analysis, we implemented our construction in both python and Q\#.
-The python implementation is easier to read, easier to debug, and more performant, allowing us to test large cases.
-The Q\# implementation verifies that we are not leaking information and gives us explicit gate count and qubit count numbers via the trace simulator.
-For simplicity, the code implementations use schoolbook multiplication instead a different Karatsuba construction as the base case multiplication.
-Technically their operation count scales like $O(n^{\lg 3} \lg^{0.42})$ instead of $O(n^{\lg 3})$.
-This has a negligible effect on the resulting data.
+The python implementation is more performant, which allowed us to test larger cases.
+The Q\# implementation allowed access to simulators that can compute explicit resource counts and verify we are not performing irreversible operations.
+For simplicity, the code uses schoolbook multiplication as the base case multiplication (instead of a different Karatsuba construction).
+This has no effect on the resulting data, because we do not simulate cases large enough for Karatsuba multiplication in the base case to outperform schoolbook multiplication.
 
 Both code bases are included as ancillary files to this paper, and can be viewed online at \href{https://github.com/strilanc/quantum-karatsuba-2019}{github.com/strilanc/quantum-karatsuba-2019}.
 Excerpts showing the recursive step, the most important part, are in the appendices.
@@ -433,19 +442,19 @@ The Toffoli count and qubit count, as determined by the Q\# trace simulator, is 
 \section{Conclusions}
 \label{sec:conclusion}
 
-In this paper, we fixed the decoherence errors in Karatsuba multiplication without increasing its space complexity or time complexity.
+In this paper, we removed decoherence from Karatsuba multiplication without increasing its space complexity or time complexity.
 We did this by rewriting the recursive step of Karatsuba multiplication into a form where the recursive steps can directly add into subsections of the output.
 This removed the need to store, and later uncompute, intermediate results, which was the main obstacle preventing the quantum implementation from matching the classical implementation in asymptotic cost.
 
 We implemented and tested our algorithm, using Q\#'s trace simulator to get concrete resource counts.
-Our gate counts are broadly similar to the ones from \cite{parent2017karatsuba}.
-It is notable that the crossover point where our implementation of Karatsuba multiplication becomes more efficient than our implementation of schoolbook multiplication (around 10000 bits) is larger than the size of modern RSA keys (2048 to 8192 bits), indicating one would prefer to use schoolbook multiplication in Shor's algorithm.
-However, because we did not attempt to optimize the constant factors of either implementation, the crossover point is liable to move.
-Also, in Shor's algorithm one is multiplying a quantum integer by a classical integer instead of two quantum integers.
-Also also, properly comparing the two algorithms requires accounting for differences in the space usage, since any unused space can be filled with magic state factories accelerating the computation.
-We do not draw any conclusions on the matter of whether Karatsuba multiplication would be useful in Shor's algorithm in practice.
+Our Toffoli counts are broadly similar to the ones from \cite{parent2017karatsuba}.
+It is notable that the crossover point where our implementation of Karatsuba multiplication becomes more efficient than our implementation of schoolbook multiplication (around 10000 bits) is larger than the size of modern RSA keys (2048 to 8192 bits), suggesting one would prefer to use schoolbook multiplication in Shor's algorithm in practice.
+However, in this paper we focused on asymptotic arguments and did not attempt to optimize constant factors.
+We also ignored important practical considerations, such as the cost of routing qubits towards each other in order for them to interact.
+Also, the case we analyzed (multiplication of two quantum integers) is different from the case that occurs in Shor's algorithm (controlled modular multiplication of a quantum integer by a classical integer).
+Therefore we do not draw any conclusions on the matter of whether Karatsuba multiplication would be useful in Shor's algorithm in practice.
 
-We view the quantum technique of having recursive calls directly mutating sections of the output as being analogous to the classical technique of tail-call optimization.
+We view the quantum technique of having recursive calls directly mutate sections of the output as being analogous to the classical technique of tail-call optimization.
 In the same way that using tail calls is key to optimizing the space complexity of classical recursive algorithms, we believe that using inline-mutation calls is key to optimizing the space complexity of quantum recursive algorithms.
 It is a basic tool, important to include in any quantum algorithm design toolbox.
 
@@ -453,6 +462,7 @@ It is a basic tool, important to include in any quantum algorithm design toolbox
 \section{Acknowledgements}
 
 We thank Hartmut Neven for creating an environment where this research was possible in the first place.
+We thank Austin Fowler for reviewing a draft of this paper, and making suggestions that improved it.
 
 
 \bibliographystyle{plainnat}
