@@ -1,4 +1,4 @@
-\documentclass[onecolumn]{quantumarticle}
+\documentclass[onecolumn,unpublished]{quantumarticle}
 \usepackage{amsmath}
 \usepackage[numbers]{natbib}
 \usepackage{amssymb}
@@ -144,9 +144,9 @@ def classical_karatsuba_square(v: int) -> int:
     low = v & ~(-1 << pivot)
     high = v >> pivot
 
-    low_sq = karatsuba_square(low)
-    high_sq = karatsuba_square(high)
-    sum_sq = karatsuba_square(low + high)
+    low_sq = classical_karatsuba_square(low)
+    high_sq = classical_karatsuba_square(high)
+    sum_sq = classical_karatsuba_square(low + high)
 
     return sum([
         low_sq,
