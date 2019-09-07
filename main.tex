@@ -1,4 +1,4 @@
-\documentclass[onecolumn]{quantumarticle}
+\documentclass[onecolumn,unpublished]{quantumarticle}
 \usepackage{amsmath}
 \usepackage[numbers]{natbib}
 \usepackage{amssymb}
@@ -94,9 +94,13 @@ showstringspaces=false
 \renewcommand{\sec}[1]{\hyperref[sec:#1]{Section~\ref*{sec:#1}}}
 \DeclareRobustCommand{\app}[1]{\hyperref[app:#1]{Appendix~\ref*{app:#1}}}
 \newcommand{\fig}[1]{\hyperref[fig:#1]{Figure~\ref*{fig:#1}}}
+\newcommand{\tbl}[1]{\hyperref[tbl:#1]{Table~\ref*{tbl:#1}}}
 \def\ket#1{\mathinner{|{#1}\rangle}}
 \newcommand{\factory}[3]{$#1 \genfrac{}{}{0pt}{}{#2}{\rightarrow} {#3}$ factory}
+\def\lb{\operatorname{lb}}
 
+
+\input{qcircuit}
 
 \begin{document}
 
@@ -108,7 +112,7 @@ showstringspaces=false
 \affiliation{Google Inc., Santa Barbara, California 93117, USA}
 
 \begin{abstract}
-We improve the space complexity of Karatsuba multiplication on a quantum computer from $O(n^{1.427})$ to $O(n)$ while maintaining $O(n^{\lg 3})$ gate complexity.
+We improve the space complexity of Karatsuba multiplication on a quantum computer from $O(n^{1.427})$ to $O(n)$ while maintaining $O(n^{\lb 3})$ gate complexity.
 We achieve this by ensuring recursive calls can add their outputs directly into subsections of the output register.
 This avoids the need to store, and uncompute, intermediate results.
 This optimization, which is analogous to classical tail-call optimization, should be applicable to a wide range of recursive quantum algorithms.
@@ -144,9 +148,9 @@ def classical_karatsuba_square(v: int) -> int:
     low = v & ~(-1 << pivot)
     high = v >> pivot
 
-    low_sq = karatsuba_square(low)
-    high_sq = karatsuba_square(high)
-    sum_sq = karatsuba_square(low + high)
+    low_sq = classical_karatsuba_square(low)
+    high_sq = classical_karatsuba_square(high)
+    sum_sq = classical_karatsuba_square(low + high)
 
     return sum([
         low_sq,
@@ -162,22 +166,46 @@ def classical_karatsuba_square(v: int) -> int:
 }
 \end{figure}
 
+\begin{table}
+\centering
+\resizebox{\linewidth}{!}{
+    \begin{tabular}{r|l|l|l|l|l}
+    Source                                          &Strategy                                                &Gate count           &Time                &Space            &Spacetime \\
+    \hline
+                                        -           &Uncompute with more recursive calls                     &$n^{2.585}$          &$n^{2.585}$         &$n$              &$n^{3.585}$ \\
+    Bennett 1989 \cite{bennett1989pebble}           &Generic strategy for any computation (favor small space)&$n^{1.585+\epsilon}$ &$n^{1.585+\epsilon}$&$n \lb n$        &$n^{2.585+\epsilon} \lb n$ \\
+    Bennett 1989 \cite{bennett1989pebble}           &Generic strategy for any computation (favor small time) &$n^{1.585}$          &$n^{1.585}$         &$n^{1+\epsilon}$ &$n^{2.585+\epsilon}$ \\
+    Kowada et al. 2006 \cite{portugal2006karatsuba} &Uncompute at end                                        &$n^{1.585}$          &$n^{1.585}$         &$n^{1.585}$      &$n^{3.170}$ \\
+    Kowada et al. 2006 \cite{portugal2006karatsuba} &Parallel recursion, uncompute at end                    &$n^{1.585}$          &$n$                 &$n^{1.585}$      &$n^{2.585}$ \\
+    Parent et al. 2017 \cite{parent2017karatsuba}   &Pebble game based optimization                          &$n^{1.585}$          &$n^{1.158}$         &$n^{1.427}$      &$n^{2.585}$ \\
+    \hline
+    (this paper)                                    &Parallel recursion, log-depth adders, uncompute at end  &$n^{1.585}$          &$\lb^2 n$           &$n^{1.585}$      &$n^{1.585} \lb^2 n$ \\
+    (this paper)                                    &Inline recursive mutation                               &$n^{1.585}$          &$n^{1.585}$         &$n$              &$n^{2.585}$ \\
+    (this paper)                                    &Inline recursive mutation then parallel at $n^{0.631}$  &$n^{1.585}$          &$n^{0.585} \lb^2 n$ &$n$              &$n^{1.585} \lb^2 n$ \\
+    \end{tabular}
+}
+    \caption{
+        Asymptotic costs of various Karatsuba multiplication strategies.
+    }
+    \label{tbl:comparison}
+\end{table}
+
 One way to remove the implicit decoherence in the code is to uncompute the recursive calls by running them in reverse.
 This does remove the decoherence, but it increases the number of recursive calls from 3 to 6.
 The recurrence relation that defines the cost of the code is $T(n) = O(n) + r \cdot T(n/2)$ where $T(1) = O(1)$ and $r$ is the number of recursive calls.
-When $r>2$, the solution to this recurrence relation is $T(n) = O(n^{\lg r})$ where $\lg$ is the base-2 logarithm.
-Increasing $r$ from 3 to 6 increases the total number of operations from sub-quadratic $O(n^{\lg 3})$ to cubic $O(n^3)$, which is clearly unacceptable.
+When $r>2$, the solution to this recurrence relation is $T(n) = O(n^{\lb r})$ where $\lb$ is the base-2 logarithm.
+Increasing $r$ from 3 to 6 increases the total number of operations from sub-quadratic $O(n^{\lb 3})$ to cubic $O(n^3)$, which is clearly unacceptable.
 Even schoolbook multiplication achieves $O(n^2)$ operations.
 
 Another way to remove the decoherence is to store all intermediate values that would have been discarded during execution of the algorithm, and then uncompute those intermediate values in reverse order at the end of the algorithm \cite{bennett1973logical}.
-This at most doubles the number of operations, but has the downside of increasing the space usage from $O(n)$ to the number of operations $O(n^{\lg 3})$.
+This at most doubles the number of operations, but has the downside of increasing the space usage from $O(n)$ to the number of operations $O(n^{\lb 3})$.
 It is possible to improve over this naive space bound by carefully analyzing the dependencies between values as a pebble game \cite{bennett1989pebble}.
 Parent et al. do this in \cite{parent2017karatsuba}, and improve the space complexity to $O(n^{1.427})$ while preserving the time complexity.
 It is unclear if it is possible to get all the way down to linear space cost using this approach.
 
 In this paper, we present an alternative method for removing decoherence from Karatsuba multiplication.
 Specifically, we orchestrate the execution of the algorithm such that intermediate values can simply be added directly into sections of the output register.
-This avoids the need to store and uncompute the intermediate values, achieving $O(n)$ space usage while preserving the $O(n^{\lg 3})$ operation count, matching the asymptotic behavior of the classical implementation.
+This avoids the need to store and uncompute the intermediate values, achieving $O(n)$ space usage while preserving the $O(n^{\lb 3})$ operation count, matching the asymptotic behavior of the classical implementation.
 
 The paper is arranged as follows.
 In \sec{introduction} we motivate the difficulty of the problem and discuss some background.
@@ -311,8 +339,8 @@ We need a mechanism to terminate these carries.
 
 The mechanism we use to terminate the carries is to pad the words in $t$ with enough bits to ensure they can directly store a product of words from $u$ and $v$.
 Actually, because we add together words in $u$, $v$, and $t$, the padding needs to be sufficient to store a sum of products of sums of words from $u$ and $v$.
-If we are dividing the input into $m$ words of size $w$, then each word in $t$ must have $2w + 3 \lg m$ bits of storage.
-Similarly, because we are storing sums of words from $u$ and $v$ into the words of $u$ and $v$, the initial words in $u$ and $v$ must be padded up from $w$ bits to $w + \lg m$ bits.
+If we are dividing the input into $m$ words of size $w$, then each word in $t$ must have $2w + 3 \lb m$ bits of storage.
+Similarly, because we are storing sums of words from $u$ and $v$ into the words of $u$ and $v$, the initial words in $u$ and $v$ must be padded up from $w$ bits to $w + \lb m$ bits.
 
 Taking into account these considerations, we can scope the extent of every addition.
 We indicate the scoping by using python slice notation.
@@ -339,6 +367,7 @@ x &\minuseq y
 \end{aligned}\end{equation}
 
 This final series of instructions is the heart of our algorithm for Karatsuba multiplication without decoherence.
+See \fig{circuit} for an equivalent circuit diagram.
 We iteratively decompose multiplications into this set of instructions until we hit the base case $m=1$, resulting in a long series of inline additions (and subtractions) and base case multiplications.
 If the base case multiplication also decomposes into additions, then the whole algorithm is just a series of inline additions.
 
@@ -348,11 +377,12 @@ We need to somehow merge the result onto just the non-padding bits, and uncomput
 
 We fix this problem in a naive fashion.
 During the initial preparation to perform a multiplication, we allocate a temporary register to play the role of $t$, instead of setting $t$ to be the actual target of the multiplication.
-(To be clear, we do not do this during the recursive steps!
+(To be clear, we do not do this during the recursive steps.
 We only do it at the top-most level of the algorithm.)
 We add the product $uv$ into the temporary register, with padding, using the recursive procedure we have been describing throughout the rest of this section.
 We then iterate over groups of padding and non-padding bits in the temporary register, adding them into the true target at the appropriate offsets.
 We then uncompute the temporary register.
+See \fig{padding}.
 
 Computing and uncomputing a temporary register doubles the cost of the multiplication, but it removes all remaining decoherence and completes our construction.
 
@@ -360,14 +390,14 @@ Computing and uncomputing a temporary register doubles the cost of the multiplic
 \section{Analysis}
 \label{sec:results}
 
-Given the word size $w$ and initial word count $m$, and recalling that we are operating on padded input words of size $w + \lg m$ and padded output words of size $2w + 3 \lg m$, we can determine the ultimate operation count of recursively rewriting multiplications into \eq{instructions}.
+Given the word size $w$ and initial word count $m$, and recalling that we are operating on padded input words of size $w + \lb m$ and padded output words of size $2w + 3 \lb m$, we can determine the ultimate operation count of recursively rewriting multiplications into \eq{instructions}.
 The resulting recurrence relation is
 
 \begin{equation}
     \begin{aligned}
-        T(1) &= O(B(w + \lg m))
+        T(1) &= O(B(w + \lb m))
         \\
-        T(k) &= O(k \cdot (w + \lg m)) + 3 T(k/2)
+        T(k) &= O(k \cdot (w + \lb m)) + 3 T(k/2)
     \end{aligned}
 \end{equation}
 
@@ -376,45 +406,45 @@ The solution to this recurrence relation is:
 
 \begin{equation}
     \begin{aligned}
-T(k) &= O(k (w + \lg m)) + 3 T(k/2)
-\\   &= O\left(\left(\sum_{j=0}^{\lg k - 1} k (w + \lg m) \left(\frac{3}{2}\right)^j\right) + 3^{\lg k} B(w + \lg m)\right)
-\\   &= O\left(k \cdot (w + \lg m) \left(\frac{3}{2}\right)^{\lg k} + 3^{\lg k} B(w + \lg m)\right)
+T(k) &= O(k (w + \lb m)) + 3 T(k/2)
+\\   &= O\left(\left(\sum_{j=0}^{\lb k - 1} k (w + \lb m) \left(\frac{3}{2}\right)^j\right) + 3^{\lb k} B(w + \lb m)\right)
+\\   &= O\left(k \cdot (w + \lb m) \left(\frac{3}{2}\right)^{\lb k} + 3^{\lb k} B(w + \lb m)\right)
     \end{aligned}
 \end{equation}
 
-If we set $w=\lg n$ and $m=n/\lg n$, where $n$ is the number of bits in each input number, then the total operation count is:
+If we set $w=\lb n$ and $m=n/\lb n$, where $n$ is the number of bits in each input number, then the total operation count is:
 
 \begin{equation}
     \begin{aligned}
-T(m) &= T\left(\frac{n}{\lg n}\right)
-\\   &= O\left(\frac{n}{\lg n} \left(\lg n + \lg \frac{n}{\lg n}\right) \left(\frac{3}{2}\right)^{\lg \frac{n}{\lg n}} + 3^{\lg \frac{n}{\lg n}} B\left(\lg n + \lg \frac{n}{\lg n}\right)\right)
-\\   &= O\left(n \left(\frac{3}{2}\right)^{\lg n} + 3^{\lg n - \lg \lg n} B(\lg n)\right)
-\\   &= O\left(n^{\lg 3} + \frac{n^{\lg 3}}{\lg^{\lg 3} n} B(\lg n)\right)
-\\   &= O\left(n^{\lg 3} \frac{B(\lg n)}{\lg^{\lg 3} n}\right)
+T(m) &= T\left(\frac{n}{\lb n}\right)
+\\   &= O\left(\frac{n}{\lb n} \left(\lb n + \lb \frac{n}{\lb n}\right) \left(\frac{3}{2}\right)^{\lb \frac{n}{\lb n}} + 3^{\lb \frac{n}{\lb n}} B\left(\lb n + \lb \frac{n}{\lb n}\right)\right)
+\\   &= O\left(n \left(\frac{3}{2}\right)^{\lb n} + 3^{\lb n - \lb \lb n} B(\lb n)\right)
+\\   &= O\left(n^{\lb 3} + \frac{n^{\lb 3}}{\lb^{\lb 3} n} B(\lb n)\right)
+\\   &= O\left(n^{\lb 3} \frac{B(\lb n)}{\lb^{\lb 3} n}\right)
     \end{aligned}
 \end{equation}
 
-From this analysis, we can see that it would not be asymptotically acceptable to use schoolbook multiplication in our base case because the resulting complexity would scale like $O(n^{\lg 3} \lg^{0.42} n)$ instead of $O(n^{\lg 3})$.
-Fortunately, because our base case has size $w + \lg m = O(\lg n)$, we can simply use a space-inefficient form of Karatsuba multiplication, e.g. the construction from \cite{parent2017karatsuba}, as our base case.
+From this analysis, we can see that it would not be asymptotically acceptable to use schoolbook multiplication in our base case because the resulting complexity would scale like $O(n^{\lb 3} \lb^{0.42} n)$ instead of $O(n^{\lb 3})$.
+Fortunately, because our base case has size $w + \lb m = O(\lb n)$, we can simply use a space-inefficient form of Karatsuba multiplication, e.g. the construction from \cite{parent2017karatsuba}, as our base case.
 The additive space cost we pay for this is polylogarithmic in $n$; asymptotically negligible.
-This reduces the operation count to $O(n^{\lg 3})$ as desired.
+This reduces the operation count to $O(n^{\lb 3})$ as desired.
 
 We can also determine the space usage of the algorithm from our choices of $m$ and $w$.
-The padded input has size $m \cdot (w + \lg m) = \frac{n}{\lg n} (\lg n + \lg \frac{n}{\lg n}) \leq 2 n$.
-The padded output has size $2m \cdot (2w + 3 \lg m) = \frac{2n}{\lg n} (2 \lg n + 3 \lg \frac{n}{\lg n}) \leq 10 n$.
+The padded input has size $m \cdot (w + \lb m) = \frac{n}{\lb n} (\lb n + \lb \frac{n}{\lb n}) \leq 2 n$.
+The padded output has size $2m \cdot (2w + 3 \lb m) = \frac{2n}{\lb n} (2 \lb n + 3 \lb \frac{n}{\lb n}) \leq 10 n$.
 All other sources of memory usage, such as the base case multiplications, are negligible.
 Thus the total space usage is $O(n)$ as desired.
 
 Achieving a good asymptotic depth requires some tweaks to the construction.
 The problem is that the recursive calls we are performing require exclusive access to overlapping ranges of the output register, which prevents the recursive cases from being run in parallel, which serializes the execution of the base cases.
 We can work around this issue by making the base case larger.
-If we set the word size $w^\prime$ to $n^{1 / \lg 3}$ instead of $\lg n$, then in the base case multiplication we can use the naive Karatsuba construction where all intermediate values are stored until the (base case) multiplication has completed (at which point the intermediate values are uncomputed in reverse order) \cite{bennett1973logical}.
-We can afford to do this because the word size $w^\prime$ is small enough that the space used while executing a base case will be $O({w^\prime}^{\lg 3}) = O(n)$.
-By using log-depth adders and parallel execution of smaller cases, the base case can be completed in $D(w^\prime) = O(\lg w^\prime) + D(w^\prime/2) = O(\lg^2 w^\prime) = O(\lg^2 n)$ depth while maintaining the desired $O({w^\prime}^{\lg 3}) = O(n)$ space usage (because the space usage cannot exceed the operation count).
-There will be $3^{\lg n - \lg w^\prime} = O(n^{\lg 3 - 1})$ of these base cases, executed serially.
+If we set the word size $w^\prime$ to $n^{1 / \lb 3}$ instead of $\lb n$, then in the base case multiplication we can use the naive Karatsuba construction where all intermediate values are stored until the (base case) multiplication has completed (at which point the intermediate values are uncomputed in reverse order) \cite{bennett1973logical}.
+We can afford to do this because the word size $w^\prime$ is small enough that the space used while executing a base case will be $O({w^\prime}^{\lb 3}) = O(n)$.
+By using log-depth adders and parallel execution of smaller cases, the base case can be completed in $D(w^\prime) = O(\lb w^\prime) + D(w^\prime/2) = O(\lb^2 w^\prime) = O(\lb^2 n)$ depth while maintaining the desired $O({w^\prime}^{\lb 3}) = O(n)$ space usage (because the space usage cannot exceed the operation count).
+There will be $3^{\lb n - \lb w^\prime} = O(n^{\lb 3 - 1})$ of these base cases, executed serially.
 The depth cost of executing these base cases dominates the depth cost of the non-recursive additions used to prepare them (as long as those additions use log-depth adders).
-Thus the total depth of this increased-word-size massively-parallel-base-case construction is $O(n^{\lg 3 - 1} \lg^2 n)$ and since the space usage is still linear the spacetime volume is $O(n^{\lg 3} \lg^2 n)$.
-This is an improvement over the $O(n^{1 + \lg 3})$ volumes achieved in \cite{portugal2006karatsuba} and \cite{parent2017karatsuba}.
+Thus the total depth of this increased-word-size massively-parallel-base-case construction is $O(n^{\lb 3 - 1} \lb^2 n)$ and since the space usage is still linear the spacetime volume is $O(n^{\lb 3} \lb^2 n)$.
+This is an improvement over the $O(n^{1 + \lb 3})$ volumes achieved in previous work (see \tbl{comparison}).
 
 In order to double-check our algorithm and our analysis, we implemented our construction in both python and Q\#.
 The python implementation is more performant, which allowed us to test larger cases.
@@ -436,6 +466,8 @@ The Toffoli count and qubit count, as determined by the Q\# trace simulator, is 
     \label{fig:data}
     Log-log plot of the number of Toffoli gates and qubits used by our Q\# implementation of Karatsuba multiplication and schoolbook multiplication for various input sizes.
     The staircase behavior in the Karatsuba curves are due to the implementation rounding to powers of 2.
+    Extrapolation is used beyond $n=3000$ due to a 40128 qubit limit in Q\#'s tracing compiler.
+    The extrapolation is based entirely on leading asymptotic terms, e.g. the Karatsuba Toffoli count at $n$ is extrapolated to be three times the Toffoli count at $n/2$.
     }
 \end{figure}
 
@@ -447,12 +479,17 @@ We did this by rewriting the recursive step of Karatsuba multiplication into a f
 This removed the need to store, and later uncompute, intermediate results, which was the main obstacle preventing the quantum implementation from matching the classical implementation in asymptotic cost.
 
 We implemented and tested our algorithm, using Q\#'s trace simulator to get concrete resource counts.
-Our Toffoli counts are broadly similar to the ones from \cite{parent2017karatsuba}.
-It is notable that the crossover point where our implementation of Karatsuba multiplication becomes more efficient than our implementation of schoolbook multiplication (around 10000 bits) is larger than the size of modern RSA keys (2048 to 8192 bits), suggesting one would prefer to use schoolbook multiplication in Shor's algorithm in practice.
-However, in this paper we focused on asymptotic arguments and did not attempt to optimize constant factors.
+The Toffoli counts are broadly similar to the ones from \cite{parent2017karatsuba}.
+We did not attempt to strongly optimize our Toffolis counts; we only wished to confirm the expected scaling.
 We also ignored important practical considerations, such as the cost of routing qubits towards each other in order for them to interact.
-Also, the case we analyzed (multiplication of two quantum integers) is different from the case that occurs in Shor's algorithm (controlled modular multiplication of a quantum integer by a classical integer).
-Therefore we do not draw any conclusions on the matter of whether Karatsuba multiplication would be useful in Shor's algorithm in practice.
+
+When writing this paper we had an unstated secondary motivation: to check whether Karatsuba multiplication would be more efficient for factoring 2048 bit numbers than the techniques we planned to use in \cite{gidney2019factor} (which was in preparation at the time this paper was released to the arXiv).
+Although the Toffoli counts in this paper are not optimized, it is clear that Karatsuba multiplication will not be more efficient at factoring 2048 bit numbers.
+Even a 10x improvement would not be competitive, after accounting for space and routing overheads.
+We also considered using more advanced multiplication algorithms, such as the Schönhage–Strassen algorithm.
+But it only becomes faster than schoolbook multiplication at $n=32000$ (according to \cite{van2005fast}) and requires substantially more space ($\approx 50n$ qubits according to \cite{zalka1998fast}).
+Finally, we note the recent $O(n \lb n)$ multiplication algorithm by Harvey and Hoeven \cite{harvey2019integer}.
+However, even classically, the value of $n$ at which it becomes faster than other methods is astronomical and so we did not consider it.
 
 We view the quantum technique of having recursive calls directly mutate sections of the output as being analogous to the classical technique of tail-call optimization.
 In the same way that using tail calls is key to optimizing the space complexity of classical recursive algorithms, we believe that using inline-mutation calls is key to optimizing the space complexity of quantum recursive algorithms.
@@ -469,6 +506,77 @@ We thank Austin Fowler for reviewing a draft of this paper, and making suggestio
 \bibliography{refs}
 
 \appendix
+
+\begin{figure}
+\centering
+\resizebox{0.85\linewidth}{!}{
+\Qcircuit @R=1em @C=0.75em {
+\\
+&{/} \qw& \ustick{W}\qw&\multigate{7}{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\multigate{3}{\text{in a}}    &\qw                           &\qw                         &\qw                         &\multigate{3}{+b}             &\multigate{3}{\text{in }a}    &\multigate{3}{-b}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in a}}    &\qw                           &\qw                         &\qw                         &       \ghost{+b}             &       \ghost{\text{in }a}    &       \ghost{-b}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in a}}    &\qw                           &\qw                         &\qw                         &       \ghost{+b}             &       \ghost{\text{in }a}    &       \ghost{-b}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in a}}    &\qw                           &\qw                         &\qw                         &       \ghost{+b}             &       \ghost{\text{in }a}    &       \ghost{-b}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &\multigate{3}{\text{in b}}    &\qw                         &\qw                         &\multigate{3}{\text{in }b}\qwx&\qwx\qw                       &\multigate{3}{\text{in }b}\qwx&\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in b}}    &\qw                         &\qw                         &       \ghost{\text{in }b}    &\qwx\qw                       &       \ghost{\text{in }b}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in b}}    &\qw                         &\qw                         &       \ghost{\text{in }b}    &\qwx\qw                       &       \ghost{\text{in }b}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in u}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in b}}    &\qw                         &\qw                         &       \ghost{\text{in }b}    &\qwx\qw                       &       \ghost{\text{in }b}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&\multigate{7}{\text{in v}}\qwx&\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\multigate{3}{\text{in x}}\qwx&\qwx\qw                       &\qw                         &\qw                         &\multigate{3}{+y}             &\multigate{3}{\text{in }x}\qwx&\multigate{3}{-y}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in x}}    &\qwx\qw                       &\qw                         &\qw                         &       \ghost{+y}             &       \ghost{\text{in }x}    &       \ghost{-y}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in x}}    &\qwx\qw                       &\qw                         &\qw                         &       \ghost{+y}             &       \ghost{\text{in }x}    &       \ghost{-y}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{\text{in x}}    &\qwx\qw                       &\qw                         &\qw                         &       \ghost{+y}             &       \ghost{\text{in }x}    &       \ghost{-y}             &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &\multigate{3}{\text{in y}}\qwx&\qw                         &\qw                         &\multigate{3}{\text{in }y}\qwx&\qwx\qw                       &\multigate{3}{\text{in }y}\qwx&\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in y}}    &\qw                         &\qw                         &       \ghost{\text{in }y}    &\qwx\qw                       &       \ghost{\text{in }y}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in y}}    &\qw                         &\qw                         &       \ghost{\text{in }y}    &\qwx\qw                       &       \ghost{\text{in }y}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{\text{in v}}    &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\qwx\qw                       &       \ghost{\text{in y}}    &\qw                         &\qw                         &       \ghost{\text{in }y}    &\qwx\qw                       &       \ghost{\text{in }y}    &\qw&\\
+&{/} \qw& \ustick{W}\qw&\multigate{15}{+uv}\qwx       &\qw& &=& & &{/} \qw& \ustick{W}\qw&\multigate{3}{\text{in }t_0}&\qw                         &\multigate{7}{+ax}\qwx        &\qwx\qw                       &\qw                         &\qw                         &\multigate{3}{\text{in }t_0}  &\qwx\qw                       &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{\text{in }t_0}&\qw                         &       \ghost{+ax}            &\qwx\qw                       &\qw                         &\qw                         &       \ghost{\text{in }t_0}  &\qwx\qw                       &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{\text{in }t_0}&\qw                         &       \ghost{+ax}            &\qwx\qw                       &\qw                         &\qw                         &       \ghost{\text{in }t_0}  &\qwx\qw                       &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{\text{in }t_0}&\qw                         &       \ghost{+ax}            &\qwx\qw                       &\qw                         &\qw                         &       \ghost{\text{in }t_0}  &\qwx\qw                       &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\multigate{3}{+t_0}\qwx     &\multigate{3}{\text{in }t_1}&       \ghost{+ax}            &\multigate{7}{+by}\qwx        &\qw                         &\multigate{3}{\text{in }t_1}&\multigate{3}{-t_0}\qwx       &\multigate{7}{+ax}\qwx        &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{+t_0}         &       \ghost{\text{in }t_1}&       \ghost{+ax}            &       \ghost{+by}            &\qw                         &       \ghost{\text{in }t_1}&       \ghost{-t_0}           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{+t_0}         &       \ghost{\text{in }t_1}&       \ghost{+ax}            &       \ghost{+by}            &\qw                         &       \ghost{\text{in }t_1}&       \ghost{-t_0}           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&       \ghost{+t_0}         &       \ghost{\text{in }t_1}&       \ghost{+ax}            &       \ghost{+by}            &\qw                         &       \ghost{\text{in }t_1}&       \ghost{-t_0}           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\multigate{3}{+t_1}\qwx     &\multigate{3}{\text{in }t_2}  &       \ghost{+by}            &\multigate{3}{\text{in }t_2}&\multigate{3}{-t_1}\qwx     &\qw                           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &       \ghost{+t_1}         &       \ghost{\text{in }t_2}  &       \ghost{+by}            &       \ghost{\text{in }t_2}&       \ghost{-t_1}         &\qw                           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &       \ghost{+t_1}         &       \ghost{\text{in }t_2}  &       \ghost{+by}            &       \ghost{\text{in }t_2}&       \ghost{-t_1}         &\qw                           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &       \ghost{+t_1}         &       \ghost{\text{in }t_2}  &       \ghost{+by}            &       \ghost{\text{in }t_2}&       \ghost{-t_1}         &\qw                           &       \ghost{+ax}            &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &\multigate{3}{+t_2}\qwx       &\qw                           &\multigate{3}{-t_2}\qwx     &\qw                         &\qw                           &\qw                           &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{+t_2}           &\qw                           &       \ghost{-t_2}         &\qw                         &\qw                           &\qw                           &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{+t_2}           &\qw                           &       \ghost{-t_2}         &\qw                         &\qw                           &\qw                           &\qw                           &\qw&\\
+&{/} \qw& \ustick{W}\qw&       \ghost{+uv}            &\qw& & & & &{/} \qw& \ustick{W}\qw&\qw                         &\qw                         &       \ghost{+t_2}           &\qw                           &       \ghost{-t_2}         &\qw                         &\qw                           &\qw                           &\qw                           &\qw&\\
+\\
+}
+}
+    \caption{
+        Circuit diagram of the recursive step in our linear space reversible Karatsuba multiplication.
+        Note that there are exactly three half-sized recursive calls amongst the additions, and that these recursive calls are performed with no additional workspace.
+        In this example the word count is $m=8$ and the word size is $w = n/8$.
+        Each line shown in the diagram is a register of $W$ qubits, where $W \geq 2w + 3 \lb m$ in order to ensure there are no overflows.
+    }
+    \label{fig:circuit}
+\end{figure}
+
+\begin{figure}
+\centering
+\resizebox{0.85\linewidth}{!}{
+\Qcircuit @R=1em @C=0.75em {
+\\
+&                  {/}\qw&\gate{\text{in }u}    &\qw&\gate{\text{in }u}    &\qw&\\
+&                  {/}\qw&\gate{\text{in }v}\qwx&\qw&\gate{\text{in }v}\qwx&\qw&\\
+\lstick{0}&{/}\qw&\gate{+uv}\qwx        &\gate{\text{in }t}&\gate{-uv}\qwx        &\qw&\\
+&                  {/}\qw&\qw        &\gate{+t}\qwx&\qw&\qw&\\
+\\
+}
+}
+    \caption{
+        Circuit diagram showing how dirty padding bits are dealt with.
+        The shown multiplications are ``dirty" multiplications, which spread their output over more qubits than necessary.
+        The intermediate register has padding qubits that are populated by the first dirty multiplication, but the addition into the true target register merges all the qubits together into a correct result and then the padding qubits are uncomputed during the second dirty multiplication.
+        The two input registers also contain padding qubits, but they are only used as temporary workspace that is correctly uncomputed by each individual multiplication.
+        Note that the central addition is actually a constant number of additions, because there are a constant number of main qubits and padding qubits for each bit position in the output register.
+    }
+    \label{fig:padding}
+\end{figure}
 
 \section{Python Code Excerpt}
 \label{app:python}
